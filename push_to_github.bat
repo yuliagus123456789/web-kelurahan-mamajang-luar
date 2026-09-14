@@ -41,12 +41,13 @@ echo 5. Melakukan push ke GitHub (main)...
 echo (Jendela browser akan terbuka otomatis untuk login / otorisasi akun GitHub Anda)
 echo Silakan klik 'Sign in with your browser' atau 'Authorize'.
 echo.
-git push -u origin main
+git push -u origin main --force
 
 if %errorlevel% equ 0 (
     echo.
     echo =========================================================
     echo   BERHASIL! Seluruh kode telah ter-push ke GitHub!
+    echo   Kunjungi: https://github.com/yuliagus123456789/web-kelurahan-mamajang-luar
     echo =========================================================
 ) else (
     echo.
