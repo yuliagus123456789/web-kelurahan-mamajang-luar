@@ -1,0 +1,86 @@
+{
+  "id": "/?source=pwa",
+  "name": "Kelurahan Mamajang Luar",
+  "short_name": "Mamajang Luar",
+  "description": "Portal Pelayanan Publik & Sistem Informasi Resmi Kelurahan Mamajang Luar, Kota Makassar",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#440b1c",
+  "theme_color": "#8B2342",
+  "lang": "id",
+  "dir": "ltr",
+  "orientation": "portrait-primary",
+  "categories": [
+    "government",
+    "public-services",
+    "social"
+  ],
+  "icons": [
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Layanan Administrasi",
+      "short_name": "Layanan",
+      "description": "Prosedur dan pengajuan surat administrasi warga",
+      "url": "/layanan?source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/pwa-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Aspirasi & Darurat",
+      "short_name": "Pengaduan",
+      "description": "Sampaikan aduan atau cek nomor satgas darurat",
+      "url": "/kontak?source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/pwa-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Potensi & UMKM Warga",
+      "short_name": "UMKM",
+      "description": "Direktori usaha kuliner, jasa, dan toko warga",
+      "url": "/umkm?source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/pwa-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

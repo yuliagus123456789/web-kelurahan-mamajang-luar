@@ -3,30 +3,184 @@ import { Link } from '@/lib/router';
 import { supabase } from '@/lib/supabase';
 import { UmkmItem } from '@/lib/types';
 import { KELURAHAN_CONFIG } from '@/lib/config';
-import { Store, Phone, MapPin, Search, PlusCircle, ExternalLink, Sparkles, MessageCircle } from 'lucide-react';
-
+import {
+  Store,
+  Phone,
+  MapPin,
+  Search,
+  PlusCircle,
+  ExternalLink,
+  Megaphone,
+  MessageCircle,
+  CheckCircle2,
+  BadgeCheck,
+  X,
+  Camera,
+  Trash2,
+  AlertCircle,
+  Clock,
+  Check,
+} from 'lucide-react';
 import { DATA_UMKM_MALUR } from '@/data/umkmData';
-import { CheckCircle2, BadgeCheck } from 'lucide-react';
 
 export default function UmkmPage() {
-  const [umkm, setUmkm] = useState<UmkmItem[]>(DATA_UMKM_MALUR);
+  const [umkm, setUmkm] = useState<UmkmItem[]>(() =>
+    DATA_UMKM_MALUR.filter((u) => !u.status || u.status === 'Disetujui')
+  );
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Semua');
+
+  // Modal Pendaftaran Mandiri UMKM oleh Warga
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [submittingRegister, setSubmittingRegister] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+
+  const [regForm, setRegForm] = useState({
+    name: '',
+    owner: '',
+    category: 'Kuliner',
+    description: '',
+    contact: '',
+    address: '',
+    image_url: '',
+  });
+
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFileName, setPhotoFileName] = useState<string>('');
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
 
   useEffect(() => {
     (async () => {
       try {
         const { data } = await supabase.from('umkm').select('*').order('created_at', { ascending: false });
         if (data && data.length > 0) {
-          // Merge database items if any with official archive
-          setUmkm(data);
+          // Hanya tampilkan UMKM yang telah disetujui oleh admin
+          const approved = data.filter((u: UmkmItem) => !u.status || u.status === 'Disetujui');
+          setUmkm(approved);
         }
       } catch (err) {
         console.warn('Using authentic DATA_UMKM_MALUR data:', err);
       }
     })();
   }, []);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      alert('Format berkas harus berupa gambar (JPG, PNG, WEBP).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Ukuran berkas terlalu besar. Maksimal 10MB.');
+      return;
+    }
+
+    setIsCompressingPhoto(true);
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          const compressed = canvas.toDataURL('image/jpeg', 0.75);
+          setPhotoPreview(compressed);
+          setPhotoFileName(file.name);
+        } catch {
+          const original = event.target?.result as string;
+          setPhotoPreview(original);
+          setPhotoFileName(file.name);
+        } finally {
+          setIsCompressingPhoto(false);
+        }
+      };
+      img.onerror = () => setIsCompressingPhoto(false);
+    };
+    reader.onerror = () => setIsCompressingPhoto(false);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoPreview(null);
+    setPhotoFileName('');
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingRegister(true);
+    setRegisterError(null);
+
+    const newRecord = {
+      name: regForm.name.trim(),
+      owner: regForm.owner.trim(),
+      category: regForm.category,
+      description: regForm.description.trim(),
+      contact: regForm.contact.trim() || null,
+      address: regForm.address.trim() || null,
+      image_url: photoPreview || regForm.image_url.trim() || null,
+      status: 'Menunggu' as const,
+    };
+
+    try {
+      const { error } = await supabase.from('umkm').insert(newRecord);
+      if (error) {
+        console.warn('Insert to supabase error, saving local cache:', error);
+      }
+
+      // Cache locally
+      try {
+        const cached = JSON.parse(localStorage.getItem('mamajang_local_umkm_pending') || '[]');
+        localStorage.setItem(
+          'mamajang_local_umkm_pending',
+          JSON.stringify([
+            { id: `local-umkm-${Date.now()}`, ...newRecord, created_at: new Date().toISOString() },
+            ...cached,
+          ])
+        );
+      } catch {}
+
+      setSubmittingRegister(false);
+      setRegisterSuccess(true);
+      setRegForm({
+        name: '',
+        owner: '',
+        category: 'Kuliner',
+        description: '',
+        contact: '',
+        address: '',
+        image_url: '',
+      });
+      handleRemovePhoto();
+    } catch (err: any) {
+      setSubmittingRegister(false);
+      setRegisterError(err.message || 'Gagal mengirim pendaftaran. Silakan coba lagi.');
+    }
+  };
 
   const categories = ['Semua', ...Array.from(new Set(umkm.map((u) => u.category)))];
   const filtered = umkm.filter((u) => {
@@ -83,7 +237,7 @@ export default function UmkmPage() {
         <div className="bg-gradient-to-r from-makassar-900 via-stone-900 to-makassar-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-gold-500/30 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gold-500/20 border border-gold-500/30 flex items-center justify-center shrink-0 text-gold-400">
-              <Sparkles className="w-7 h-7" />
+              <Megaphone className="w-7 h-7" />
             </div>
             <div>
               <span className="text-xs uppercase tracking-wider font-semibold text-gold-300">
@@ -96,16 +250,18 @@ export default function UmkmPage() {
             </div>
           </div>
 
-          <a
-            href={KELURAHAN_CONFIG.googleForms.pendaftaranUmkm}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gold-500 hover:bg-gold-400 text-stone-950 font-bold text-sm shadow-lg hover:shadow-gold-500/20 transition-all group"
+          <button
+            type="button"
+            onClick={() => {
+              setRegisterModalOpen(true);
+              setRegisterSuccess(false);
+              setRegisterError(null);
+            }}
+            className="shrink-0 flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gold-500 hover:bg-gold-400 text-stone-950 font-bold text-sm shadow-lg hover:shadow-gold-500/20 transition-all group cursor-pointer"
           >
             <PlusCircle className="w-5 h-5 text-stone-950 group-hover:rotate-90 transition-transform" />
-            <span>Daftarkan Usaha Anda</span>
-            <ExternalLink className="w-4 h-4 opacity-70" />
-          </a>
+            <span>Daftarkan Usaha Anda (Gratis)</span>
+          </button>
         </div>
       </section>
 
@@ -285,6 +441,257 @@ export default function UmkmPage() {
           </div>
         )}
       </section>
+      {/* Modal Pendaftaran Mandiri UMKM */}
+      {registerModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in overflow-y-auto"
+          onClick={() => !submittingRegister && setRegisterModalOpen(false)}
+        >
+          <div
+            className="relative max-w-xl w-full bg-white rounded-3xl shadow-2xl p-6 sm:p-8 my-8 border border-stone-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div className="flex items-start justify-between pb-4 border-b border-stone-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gold-500/20 border border-gold-500/30 flex items-center justify-center text-gold-600 shrink-0">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-stone-900">Pendaftaran Usaha UMKM Warga</h3>
+                  <p className="text-xs text-stone-500">Kelurahan Mamajang Luar &bull; Promosi 100% Gratis</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRegisterModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400 hover:text-stone-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Konten Modal: Sukses vs Formulir */}
+            {registerSuccess ? (
+              <div className="py-8 text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+                  <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-stone-900">Pendaftaran Berhasil Diajukan!</h4>
+                  <p className="text-xs sm:text-sm text-stone-600 mt-2 max-w-md mx-auto leading-relaxed">
+                    Terima kasih telah mendaftarkan usaha Anda. Tim admin Pemerintah Kelurahan Mamajang Luar akan memverifikasi dan menyetujui data Anda sebelum ditampilkan pada direktori publik resmi.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-950 text-xs flex items-center gap-2.5 max-w-md mx-auto text-left">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Proses verifikasi biasanya memakan waktu 1×24 jam pada hari kerja kelurahan.</span>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setRegisterModalOpen(false)}
+                    className="px-6 py-2.5 rounded-xl bg-makassar-800 hover:bg-makassar-700 text-white font-bold text-xs sm:text-sm shadow transition-all cursor-pointer"
+                  >
+                    Tutup & Kembali ke Direktori
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleRegisterSubmit} className="mt-5 space-y-4">
+                {registerError && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{registerError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      Nama Usaha / Merek <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={regForm.name}
+                      onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                      placeholder="Contoh: Warung Coto Beruang"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-makassar-500 focus:ring-2 focus:ring-makassar-100 text-xs sm:text-sm outline-none bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      Nama Pemilik Usaha <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={regForm.owner}
+                      onChange={(e) => setRegForm({ ...regForm, owner: e.target.value })}
+                      placeholder="Contoh: Ibu Fatimah"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-makassar-500 focus:ring-2 focus:ring-makassar-100 text-xs sm:text-sm outline-none bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      Kategori Bidang Usaha <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={regForm.category}
+                      onChange={(e) => setRegForm({ ...regForm, category: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-makassar-500 focus:ring-2 focus:ring-makassar-100 text-xs sm:text-sm outline-none bg-white cursor-pointer"
+                    >
+                      <option value="Kuliner">Kuliner & Makanan</option>
+                      <option value="Kafe & Kopi">Kafe, Warkop & Minuman</option>
+                      <option value="Kelontong & Sembako">Kelontong & Kebutuhan Pokok</option>
+                      <option value="Fashion & Busana">Fashion, Tekstil & Jahit</option>
+                      <option value="Jasa & Servis">Jasa, Servis & Keterampilan</option>
+                      <option value="Kerajinan & Seni">Kerajinan Tangan & Souvenir</option>
+                      <option value="Pertanian & Pangan">Pertanian Kota & Tanaman</option>
+                      <option value="Lainnya">Bidang Usaha Lainnya</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      No. WhatsApp Usaha <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={regForm.contact}
+                      onChange={(e) => setRegForm({ ...regForm, contact: e.target.value })}
+                      placeholder="Contoh: 0812-3456-7890"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-makassar-500 focus:ring-2 focus:ring-makassar-100 text-xs sm:text-sm outline-none bg-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1">
+                    Alamat Lengkap / Patokan di Mamajang Luar <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regForm.address}
+                    onChange={(e) => setRegForm({ ...regForm, address: e.target.value })}
+                    placeholder="Contoh: Jl. Tupai No. 14 RT 02 / RW 01 (Depan Lapangan)"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-makassar-500 focus:ring-2 focus:ring-makassar-100 text-xs sm:text-sm outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1">
+                    Deskripsi Usaha & Produk Unggulan <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={regForm.description}
+                    onChange={(e) => setRegForm({ ...regForm, description: e.target.value })}
+                    placeholder="Jelaskan menu andalan, keunggulan produk, jam buka, atau harga perkiraan..."
+                    className="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-makassar-500 focus:ring-2 focus:ring-makassar-100 text-xs sm:text-sm outline-none bg-white resize-none"
+                  />
+                </div>
+
+                {/* Upload Foto Produk / Gerai (Opsional) */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-stone-800">
+                      Foto Gerai / Produk Usaha <span className="text-stone-400 font-normal text-[11px]">(Opsional)</span>
+                    </label>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-semibold border border-stone-200">
+                      Bisa Diabaikan
+                    </span>
+                  </div>
+
+                  {!photoPreview ? (
+                    <label className="relative flex flex-col items-center justify-center p-4 border-2 border-dashed border-stone-300 hover:border-gold-500 bg-stone-50/70 hover:bg-gold-50/20 rounded-2xl cursor-pointer transition-all group">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={handlePhotoChange}
+                      />
+                      <div className="w-9 h-9 rounded-xl bg-white border border-stone-200 flex items-center justify-center text-stone-500 group-hover:text-gold-600 transition-all mb-1.5 shadow-2xs">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs font-bold text-stone-700 group-hover:text-gold-700 text-center">
+                        {isCompressingPhoto ? 'Sedang Memproses Foto...' : 'Lampirkan Foto Produk / Gerai Usaha'}
+                      </p>
+                      <p className="text-[10px] text-stone-400 mt-0.5 text-center">
+                        Bisa ambil foto kamera HP atau pilih dari galeri (Maks. 10MB)
+                      </p>
+                    </label>
+                  ) : (
+                    <div className="p-3 rounded-2xl border border-stone-200 bg-stone-50 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={photoPreview}
+                          alt="Pratinjau Foto UMKM"
+                          className="w-14 h-14 rounded-xl object-cover border border-stone-200 bg-white shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 mb-0.5">
+                            <Check className="w-3 h-3 text-emerald-600" /> Foto Terlampir
+                          </span>
+                          <p className="text-xs font-bold text-stone-800 truncate">
+                            {photoFileName || 'Foto Produk'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="shrink-0 p-2 rounded-xl text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Hapus Foto"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    disabled={submittingRegister}
+                    onClick={() => setRegisterModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingRegister}
+                    className="px-6 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-stone-950 font-bold text-xs sm:text-sm shadow transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingRegister ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-stone-950/30 border-t-stone-950 rounded-full animate-spin" />
+                        <span>Mengirim Pendaftaran...</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle className="w-4 h-4 text-stone-950" />
+                        <span>Kirim Pendaftaran Usaha</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

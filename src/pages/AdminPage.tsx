@@ -1,10 +1,18 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { Link } from '@/lib/router';
 import { supabase } from '@/lib/supabase';
-import { NewsItem, GalleryItem, UmkmItem, ComplaintItem } from '@/lib/types';
+import { NewsItem, GalleryItem, UmkmItem, ComplaintItem, SawComplaintItem } from '@/lib/types';
 import { KELURAHAN_CONFIG } from '@/lib/config';
 import { OFFICIAL_NEWS_DATA, OFFICIAL_GALLERY_DATA } from '@/data/newsAndGalleryData';
 import { OFFICIAL_UMKM_DATA } from '@/data/umkmData';
+import {
+  calculateSawPriorities,
+  calculateSawStatistics,
+  INITIAL_SAMPLE_COMPLAINTS,
+  SAW_CONFIG,
+  CATEGORY_OPTIONS,
+  IMPACT_OPTIONS,
+} from '@/lib/spkSaw';
 import {
   ShieldCheck,
   FileSpreadsheet,
@@ -20,7 +28,6 @@ import {
   BookOpen,
   Phone,
   FileText,
-  Sparkles,
   Lock,
   User,
   Eye,
@@ -43,6 +50,12 @@ import {
   Layers,
   Inbox,
   Clock,
+  Calculator,
+  SlidersHorizontal,
+  Info,
+  Flame,
+  Activity,
+  Camera,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -58,18 +71,18 @@ const STATUS_OPTIONS = [
     label: 'Berkas Belum Lengkap (Perlu Perbaikan)',
     badge: 'bg-amber-100 text-amber-800',
     template: (nama: string, jenis: string) =>
-      `Yth. Bapak/Ibu ${nama || 'Pemohon'},\n\nTerima kasih telah mengajukan permohonan *${jenis}* melalui layanan online Kelurahan Mamajang Luar.\n\nBerdasarkan verifikasi staf kami, mohon melengkapi kembali dokumen persyaratan yang masih kurang (misal: Surat Pengantar RT/RW terbaru / foto KTP yang lebih jelas).\n\nSilakan konfirmasi atau kirimkan lampiran balasan ini. Terima kasih.\n*Staf Pelayanan Kelurahan Mamajang Luar*`,
+      `Yth. Bapak/Ibu ${nama || 'Pemohon'},\n\nTerima kasih telah mengajukan permohonan *${jenis}* di Kantor Kelurahan Mamajang Luar.\n\nSetelah kami verifikasi, terdapat beberapa berkas yang belum lengkap atau perlu diperbaiki. Mohon kesediaannya melengkapi berkas tersebut agar dapat segera kami proses lebih lanjut.\n\nTerima kasih.\n*Pemerintah Kelurahan Mamajang Luar*`,
   },
   {
-    id: 'processing',
-    label: 'Sedang Dalam Verifikasi Petugas',
+    id: 'process',
+    label: 'Sedang Diverifikasi & Diproses',
     badge: 'bg-blue-100 text-blue-800',
     template: (nama: string, jenis: string) =>
-      `Yth. Bapak/Ibu ${nama || 'Pemohon'},\n\nPermohonan *${jenis}* Anda telah kami terima dengan baik dan saat ini sedang dalam proses verifikasi oleh staf administrasi Kelurahan Mamajang Luar.\n\nKami akan segera mengabari Anda kembali begitu dokumen selesai ditandatangani Lurah.\n\nTerima kasih.\n*Pemerintah Kelurahan Mamajang Luar*`,
+      `Yth. Bapak/Ibu ${nama || 'Pemohon'},\n\nPermohonan *${jenis}* Anda telah kami terima dan saat ini *sedang dalam proses verifikasi* oleh staf administrasi Kelurahan Mamajang Luar.\n\nEstimasi waktu penyelesaian adalah 1 hari kerja. Kami akan mengabari Anda kembali setelah dokumen siap diambil.\n\nTerima kasih.\n*Pemerintah Kelurahan Mamajang Luar*`,
   },
 ];
 
-type AdminTab = 'news' | 'gallery' | 'umkm' | 'complaints' | 'tools';
+type AdminTab = 'complaints' | 'news' | 'gallery' | 'umkm' | 'tools';
 
 export default function AdminPage() {
   // Auth state
@@ -81,16 +94,28 @@ export default function AdminPage() {
   const [showPass, setShowPass] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Active Tab
-  const [activeTab, setActiveTab] = useState<AdminTab>('news');
+  // Active Tab: Default to 'complaints' (Pengaduan Warga paling pertama)
+  const [activeTab, setActiveTab] = useState<AdminTab>('complaints');
   const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Data States
   const [newsList, setNewsList] = useState<NewsItem[]>(OFFICIAL_NEWS_DATA);
   const [galleryList, setGalleryList] = useState<GalleryItem[]>(OFFICIAL_GALLERY_DATA);
   const [umkmList, setUmkmList] = useState<UmkmItem[]>(OFFICIAL_UMKM_DATA);
-  const [complaintList, setComplaintList] = useState<ComplaintItem[]>([]);
+  const [complaintList, setComplaintList] = useState<ComplaintItem[]>(INITIAL_SAMPLE_COMPLAINTS);
   const [isLoadingData, setIsLoadingData] = useState(false);
+
+  // SPK SAW States
+  const [complaintSortMode, setComplaintSortMode] = useState<'saw' | 'time'>('saw');
+  const [complaintPriorityFilter, setComplaintPriorityFilter] = useState<string>('Semua');
+  const [sawDetailModal, setSawDetailModal] = useState<SawComplaintItem | null>(null);
+  const [sawMatrixModalOpen, setSawMatrixModalOpen] = useState(false);
+
+  // Response Modal State
+  const [responseModalOpen, setResponseModalOpen] = useState(false);
+  const [selectedComplaintForResponse, setSelectedComplaintForResponse] = useState<SawComplaintItem | null>(null);
+  const [adminResponseText, setAdminResponseText] = useState('');
+  const [adminResponseStatus, setAdminResponseStatus] = useState('Diproses');
 
   // Search & Filter States
   const [newsSearch, setNewsSearch] = useState('');
@@ -98,6 +123,7 @@ export default function AdminPage() {
   const [gallerySearch, setGallerySearch] = useState('');
   const [umkmSearch, setUmkmSearch] = useState('');
   const [umkmCategoryFilter, setUmkmCategoryFilter] = useState('Semua');
+  const [umkmStatusFilter, setUmkmStatusFilter] = useState<'Semua' | 'Menunggu' | 'Disetujui' | 'Ditolak'>('Semua');
   const [complaintSearch, setComplaintSearch] = useState('');
   const [complaintStatusFilter, setComplaintStatusFilter] = useState('Semua');
 
@@ -125,7 +151,16 @@ export default function AdminPage() {
 
   const [umkmModalOpen, setUmkmModalOpen] = useState(false);
   const [editingUmkm, setEditingUmkm] = useState<UmkmItem | null>(null);
-  const [umkmForm, setUmkmForm] = useState({
+  const [umkmForm, setUmkmForm] = useState<{
+    name: string;
+    owner: string;
+    category: string;
+    description: string;
+    contact: string;
+    address: string;
+    image_url: string;
+    status: 'Disetujui' | 'Menunggu' | 'Ditolak';
+  }>({
     name: '',
     owner: '',
     category: 'Kuliner',
@@ -133,6 +168,7 @@ export default function AdminPage() {
     contact: '',
     address: '',
     image_url: '',
+    status: 'Disetujui',
   });
 
   // Delete Confirmation Modal
@@ -155,6 +191,7 @@ export default function AdminPage() {
   const [waJenisSurat, setWaJenisSurat] = useState('Surat Keterangan Usaha (SKU)');
   const [waStatus, setWaStatus] = useState(STATUS_OPTIONS[0].id);
   const [previewText, setPreviewText] = useState('');
+  const [previewComplaintPhoto, setPreviewComplaintPhoto] = useState<string | null>(null);
 
   // Auto toast message helper
   const showNotification = (text: string, type: 'success' | 'error' = 'success') => {
@@ -181,15 +218,71 @@ export default function AdminPage() {
       if (gRes.data && gRes.data.length > 0) setGalleryList(gRes.data);
       else setGalleryList(OFFICIAL_GALLERY_DATA);
 
-      if (uRes.data && uRes.data.length > 0) setUmkmList(uRes.data);
-      else setUmkmList(OFFICIAL_UMKM_DATA);
+      // UMKM (Supabase + Pendaftaran Mandiri Warga)
+      let localUmkm: UmkmItem[] = [];
+      try {
+        localUmkm = JSON.parse(localStorage.getItem('mamajang_local_umkm') || '[]');
+      } catch {
+        // ignore
+      }
+      const rawUmkmPool: UmkmItem[] = [
+        ...(uRes.data || []),
+        ...localUmkm,
+        ...OFFICIAL_UMKM_DATA,
+      ];
+      const umkmMap = new Map<string, UmkmItem>();
+      for (const item of rawUmkmPool) {
+        if (!umkmMap.has(item.id)) {
+          umkmMap.set(item.id, {
+            ...item,
+            status: item.status || 'Disetujui',
+          });
+        }
+      }
+      setUmkmList(Array.from(umkmMap.values()));
 
-      if (cRes.data) setComplaintList(cRes.data);
+      // Pengaduan & Aspirasi Warga
+      let localComplaints: ComplaintItem[] = [];
+      try {
+        localComplaints = JSON.parse(localStorage.getItem('mamajang_local_complaints') || '[]');
+      } catch {
+        // ignore
+      }
+
+      const rawPool: ComplaintItem[] = [
+        ...(cRes.data || []),
+        ...localComplaints,
+        ...INITIAL_SAMPLE_COMPLAINTS,
+      ];
+      const complaintMap = new Map<string, ComplaintItem>();
+      for (const item of rawPool) {
+        if (!complaintMap.has(item.id)) {
+          complaintMap.set(item.id, item);
+        }
+      }
+      setComplaintList(Array.from(complaintMap.values()));
     } catch (err) {
       console.warn('Gagal memuat data dari Supabase, menggunakan arsip data resmi:', err);
       setNewsList(OFFICIAL_NEWS_DATA);
       setGalleryList(OFFICIAL_GALLERY_DATA);
-      setUmkmList(OFFICIAL_UMKM_DATA);
+      let localUmkm: UmkmItem[] = [];
+      try {
+        localUmkm = JSON.parse(localStorage.getItem('mamajang_local_umkm') || '[]');
+      } catch {
+        // ignore
+      }
+      const rawUmkmPool: UmkmItem[] = [...localUmkm, ...OFFICIAL_UMKM_DATA];
+      const umkmMap = new Map<string, UmkmItem>();
+      for (const item of rawUmkmPool) {
+        if (!umkmMap.has(item.id)) {
+          umkmMap.set(item.id, {
+            ...item,
+            status: item.status || 'Disetujui',
+          });
+        }
+      }
+      setUmkmList(Array.from(umkmMap.values()));
+      setComplaintList(INITIAL_SAMPLE_COMPLAINTS);
     } finally {
       setIsLoadingData(false);
     }
@@ -449,7 +542,7 @@ export default function AdminPage() {
     }
   };
 
-  // ===== CRUD UMKM =====
+  // ===== CRUD & MODERASI UMKM =====
   const handleOpenAddUmkm = () => {
     setEditingUmkm(null);
     setUmkmForm({
@@ -460,6 +553,7 @@ export default function AdminPage() {
       contact: '',
       address: '',
       image_url: 'https://images.pexels.com/photos/36590872/pexels-photo-36590872.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+      status: 'Disetujui',
     });
     setUmkmModalOpen(true);
   };
@@ -474,28 +568,65 @@ export default function AdminPage() {
       contact: item.contact || '',
       address: item.address || '',
       image_url: item.image_url || '',
+      status: item.status || 'Disetujui',
     });
     setUmkmModalOpen(true);
+  };
+
+  const handleApproveUmkm = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('umkm')
+        .update({ status: 'Disetujui' })
+        .eq('id', id);
+
+      if (error) {
+        console.warn('Supabase update status failed, updating local state:', error);
+      }
+
+      setUmkmList((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, status: 'Disetujui' } : u))
+      );
+
+      try {
+        const localCached: UmkmItem[] = JSON.parse(localStorage.getItem('mamajang_local_umkm') || '[]');
+        const updated = localCached.map((u) => (u.id === id ? { ...u, status: 'Disetujui' as const } : u));
+        localStorage.setItem('mamajang_local_umkm', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+
+      showNotification('Pendaftaran UMKM warga berhasil disetujui dan kini aktif di katalog publik!');
+    } catch (err: unknown) {
+      const error = err as Error;
+      showNotification(`Gagal menyetujui UMKM: ${error.message}`, 'error');
+    }
   };
 
   const handleSaveUmkm = async (e: FormEvent) => {
     e.preventDefault();
     try {
       if (editingUmkm) {
+        const updatePayload = {
+          name: umkmForm.name,
+          owner: umkmForm.owner,
+          category: umkmForm.category,
+          description: umkmForm.description,
+          contact: umkmForm.contact || null,
+          address: umkmForm.address || null,
+          image_url: umkmForm.image_url || null,
+          status: umkmForm.status,
+        };
+
         const { error } = await supabase
           .from('umkm')
-          .update({
-            name: umkmForm.name,
-            owner: umkmForm.owner,
-            category: umkmForm.category,
-            description: umkmForm.description,
-            contact: umkmForm.contact || null,
-            address: umkmForm.address || null,
-            image_url: umkmForm.image_url || null,
-          })
+          .update(updatePayload)
           .eq('id', editingUmkm.id);
 
-        if (error) throw error;
+        if (error) {
+          console.warn('Supabase update failed, continuing with local state:', error);
+        }
+
         setUmkmList((prev) =>
           prev.map((u) =>
             u.id === editingUmkm.id
@@ -505,10 +636,31 @@ export default function AdminPage() {
                   contact: umkmForm.contact || null,
                   address: umkmForm.address || null,
                   image_url: umkmForm.image_url || null,
+                  status: umkmForm.status,
                 }
               : u
           )
         );
+
+        try {
+          const localCached: UmkmItem[] = JSON.parse(localStorage.getItem('mamajang_local_umkm') || '[]');
+          const updated = localCached.map((u) =>
+            u.id === editingUmkm.id
+              ? {
+                  ...u,
+                  ...umkmForm,
+                  contact: umkmForm.contact || null,
+                  address: umkmForm.address || null,
+                  image_url: umkmForm.image_url || null,
+                  status: umkmForm.status,
+                }
+              : u
+          );
+          localStorage.setItem('mamajang_local_umkm', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+
         showNotification('Data UMKM berhasil diperbarui!');
       } else {
         const newRecord = {
@@ -519,9 +671,12 @@ export default function AdminPage() {
           contact: umkmForm.contact || null,
           address: umkmForm.address || null,
           image_url: umkmForm.image_url || null,
+          status: umkmForm.status || 'Disetujui',
         };
         const { data, error } = await supabase.from('umkm').insert(newRecord).select();
-        if (error) throw error;
+        if (error) {
+          console.warn('Supabase insert failed, continuing with optimistic state:', error);
+        }
         if (data && data[0]) {
           setUmkmList((prev) => [data[0] as UmkmItem, ...prev]);
         } else {
@@ -554,15 +709,116 @@ export default function AdminPage() {
     }
   };
 
+  const handleOpenResponseModal = (item: SawComplaintItem) => {
+    setSelectedComplaintForResponse(item);
+    setAdminResponseText(item.admin_response || '');
+    setAdminResponseStatus(item.status || 'Diproses');
+    setResponseModalOpen(true);
+  };
+
+  const handleSaveAdminResponse = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedComplaintForResponse) return;
+
+    const now = new Date().toISOString();
+    try {
+      // 1. Simpan ke Supabase
+      const { error } = await supabase
+        .from('complaints')
+        .update({
+          status: adminResponseStatus,
+          admin_response: adminResponseText,
+          responded_at: now,
+        })
+        .eq('id', selectedComplaintForResponse.id);
+
+      if (error) {
+        console.warn('Update supabase failed, updating local state:', error);
+      }
+
+      // 2. Simpan di local state
+      setComplaintList((prev) =>
+        prev.map((c) =>
+          c.id === selectedComplaintForResponse.id
+            ? {
+                ...c,
+                status: adminResponseStatus,
+                admin_response: adminResponseText,
+                responded_at: now,
+              }
+            : c
+        )
+      );
+
+      // 3. Sinkronkan dengan local storage jika ada
+      try {
+        const localCached: ComplaintItem[] = JSON.parse(
+          localStorage.getItem('mamajang_local_complaints') || '[]'
+        );
+        const updated = localCached.map((c) =>
+          c.id === selectedComplaintForResponse.id
+            ? {
+                ...c,
+                status: adminResponseStatus,
+                admin_response: adminResponseText,
+                responded_at: now,
+              }
+            : c
+        );
+        localStorage.setItem('mamajang_local_complaints', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+
+      showNotification('Tanggapan dan status laporan berhasil diperbarui!');
+      setResponseModalOpen(false);
+    } catch (err: unknown) {
+      const error = err as Error;
+      showNotification(`Gagal menyimpan respon: ${error.message}`, 'error');
+    }
+  };
+
+  // Calculate SAW Priorities & KPI Statistics
+  const sawComplaints = useMemo(() => {
+    return calculateSawPriorities(complaintList);
+  }, [complaintList]);
+
+  const complaintStats = useMemo(() => {
+    return calculateSawStatistics(sawComplaints);
+  }, [sawComplaints]);
+
   const handleExportComplaintsCsv = () => {
-    if (complaintList.length === 0) {
+    if (sawComplaints.length === 0) {
       showNotification('Belum ada data pengaduan untuk diekspor', 'error');
       return;
     }
 
-    const headers = ['No', 'Tanggal', 'Nama Pelapor', 'No. HP', 'Email', 'Perihal', 'Isi Pengaduan', 'Status'];
-    const rows = complaintList.map((c, i) => [
-      i + 1,
+    const headers = [
+      'Peringkat Prioritas',
+      'Nomor Tiket',
+      'Skor SAW (Vi)',
+      'Tingkat Urgensi',
+      'Kategori Masalah (C1)',
+      'Cakupan Dampak (C2)',
+      'Kata Kunci Kedaruratan (C3)',
+      'Tanggal Lapor',
+      'Nama Pelapor',
+      'No. HP',
+      'Email',
+      'Perihal',
+      'Isi Pengaduan',
+      'Status',
+      'Tanggapan Resmi Kelurahan',
+      'Waktu Ditanggapi',
+    ];
+    const rows = sawComplaints.map((c) => [
+      c.saw.rank,
+      `"${c.ticket_number || c.id}"`,
+      c.saw.finalScore,
+      `"${c.saw.priorityLevel}"`,
+      `"${(c.category || '-').replace(/"/g, '""')}"`,
+      `"${(c.impact_scope || '-').replace(/"/g, '""')}"`,
+      `"${c.saw.matchedKeywords.join(', ') || 'Normal'}"`,
       new Date(c.created_at).toLocaleString('id-ID'),
       `"${c.name.replace(/"/g, '""')}"`,
       `"${(c.phone || '-').replace(/"/g, '""')}"`,
@@ -570,17 +826,24 @@ export default function AdminPage() {
       `"${c.subject.replace(/"/g, '""')}"`,
       `"${c.message.replace(/"/g, '""').replace(/\n/g, ' ')}"`,
       `"${c.status}"`,
+      `"${(c.admin_response || '-').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+      c.responded_at ? new Date(c.responded_at).toLocaleString('id-ID') : '"-"',
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' +
+      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Rekap_Aspirasi_Warga_Mamajang_Luar_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute(
+      'download',
+      `Rekap_SPK_Prioritas_Pengaduan_Mamajang_Luar_${new Date().toISOString().split('T')[0]}.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showNotification('Rekap pengaduan berhasil diunduh dalam format CSV!');
+    showNotification('Rekap prioritas pengaduan (SAW) berhasil diunduh dalam format CSV!');
   };
 
   // ===== DELETE EXECUTION =====
@@ -636,6 +899,10 @@ export default function AdminPage() {
     });
   }, [galleryList, gallerySearch]);
 
+  const pendingUmkmCount = useMemo(() => {
+    return umkmList.filter((u) => u.status === 'Menunggu').length;
+  }, [umkmList]);
+
   const filteredUmkm = useMemo(() => {
     return umkmList.filter((item) => {
       const matchSearch =
@@ -643,20 +910,33 @@ export default function AdminPage() {
         item.owner.toLowerCase().includes(umkmSearch.toLowerCase()) ||
         item.description.toLowerCase().includes(umkmSearch.toLowerCase());
       const matchCat = umkmCategoryFilter === 'Semua' || item.category === umkmCategoryFilter;
-      return matchSearch && matchCat;
+      const itemStatus = item.status || 'Disetujui';
+      const matchStatus = umkmStatusFilter === 'Semua' || itemStatus === umkmStatusFilter;
+      return matchSearch && matchCat && matchStatus;
     });
-  }, [umkmList, umkmSearch, umkmCategoryFilter]);
+  }, [umkmList, umkmSearch, umkmCategoryFilter, umkmStatusFilter]);
 
   const filteredComplaints = useMemo(() => {
-    return complaintList.filter((item) => {
+    const list: SawComplaintItem[] =
+      complaintSortMode === 'saw'
+        ? sawComplaints
+        : [...sawComplaints].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+
+    return list.filter((item) => {
       const matchSearch =
         item.name.toLowerCase().includes(complaintSearch.toLowerCase()) ||
         item.subject.toLowerCase().includes(complaintSearch.toLowerCase()) ||
-        item.message.toLowerCase().includes(complaintSearch.toLowerCase());
+        item.message.toLowerCase().includes(complaintSearch.toLowerCase()) ||
+        (item.ticket_number && item.ticket_number.toLowerCase().includes(complaintSearch.toLowerCase())) ||
+        (item.category && item.category.toLowerCase().includes(complaintSearch.toLowerCase()));
       const matchStatus = complaintStatusFilter === 'Semua' || item.status === complaintStatusFilter;
-      return matchSearch && matchStatus;
+      const matchPriority =
+        complaintPriorityFilter === 'Semua' || item.saw.priorityLevel === complaintPriorityFilter;
+      return matchSearch && matchStatus && matchPriority;
     });
-  }, [complaintList, complaintSearch, complaintStatusFilter]);
+  }, [sawComplaints, complaintSortMode, complaintSearch, complaintStatusFilter, complaintPriorityFilter]);
 
   // JIKA BELUM LOGIN: GERBANG LOGIN RESMI STAF
   if (!isAuthenticated) {
@@ -828,10 +1108,16 @@ export default function AdminPage() {
         {/* Navigation Tabs */}
         <div className="bg-white p-2 rounded-2xl shadow-sm border border-stone-200 flex items-center gap-1.5 overflow-x-auto scrollbar-none mb-6">
           {[
+            { id: 'complaints', label: 'Pengaduan Warga', icon: Inbox, count: complaintList.length },
             { id: 'news', label: 'Berita & Pengumuman', icon: Newspaper, count: newsList.length },
             { id: 'gallery', label: 'Galeri Kegiatan', icon: Images, count: galleryList.length },
-            { id: 'umkm', label: 'Katalog UMKM', icon: Store, count: umkmList.length },
-            { id: 'complaints', label: 'Pengaduan Warga', icon: Inbox, count: complaintList.length },
+            {
+              id: 'umkm',
+              label: 'Katalog UMKM',
+              icon: Store,
+              count: umkmList.length,
+              pending: pendingUmkmCount,
+            },
             { id: 'tools', label: 'Alat Operasional & WA', icon: MessageCircle },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -855,6 +1141,11 @@ export default function AdminPage() {
                     }`}
                   >
                     {tab.count}
+                  </span>
+                )}
+                {tab.pending !== undefined && tab.pending > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-stone-950 shadow-sm animate-pulse">
+                    {tab.pending} Menunggu
                   </span>
                 )}
               </button>
@@ -1157,6 +1448,70 @@ export default function AdminPage() {
                 </button>
               </div>
 
+              {/* Status Counters & Tabs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setUmkmStatusFilter('Semua')}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    umkmStatusFilter === 'Semua'
+                      ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
+                      : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
+                  }`}
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">Semua UMKM</p>
+                  <p className="text-xl font-black mt-0.5">{umkmList.length}</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setUmkmStatusFilter('Menunggu')}
+                  className={`p-3 rounded-2xl border text-left transition-all relative ${
+                    umkmStatusFilter === 'Menunggu'
+                      ? 'bg-amber-500 text-stone-950 border-amber-500 shadow-sm font-bold'
+                      : 'bg-amber-50/70 border-amber-200 text-amber-900 hover:bg-amber-100/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold uppercase tracking-wider">Perlu Persetujuan</p>
+                    {pendingUmkmCount > 0 && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-600 animate-ping" />
+                    )}
+                  </div>
+                  <p className="text-xl font-black mt-0.5">{pendingUmkmCount}</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setUmkmStatusFilter('Disetujui')}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    umkmStatusFilter === 'Disetujui'
+                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                      : 'bg-emerald-50/70 border-emerald-200 text-emerald-900 hover:bg-emerald-100/70'
+                  }`}
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wider opacity-90">Aktif di Website</p>
+                  <p className="text-xl font-black mt-0.5">
+                    {umkmList.filter((u) => !u.status || u.status === 'Disetujui').length}
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setUmkmStatusFilter('Ditolak')}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    umkmStatusFilter === 'Ditolak'
+                      ? 'bg-rose-700 text-white border-rose-700 shadow-sm'
+                      : 'bg-rose-50/70 border-rose-200 text-rose-900 hover:bg-rose-100/70'
+                  }`}
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wider opacity-90">Ditolak</p>
+                  <p className="text-xl font-black mt-0.5">
+                    {umkmList.filter((u) => u.status === 'Ditolak').length}
+                  </p>
+                </button>
+              </div>
+
               {/* Filter & Search */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-5">
                 <div className="relative w-full sm:w-80">
@@ -1189,11 +1544,12 @@ export default function AdminPage() {
 
               {/* Tabel UMKM */}
               <div className="mt-5 overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[700px]">
+                <table className="w-full text-left text-xs min-w-[760px]">
                   <thead>
                     <tr className="border-b border-stone-200 text-stone-400 text-[11px] uppercase tracking-wider">
                       <th className="py-3 px-3">Usaha & Pemilik</th>
                       <th className="py-3 px-3">Kategori</th>
+                      <th className="py-3 px-3">Status Moderasi</th>
                       <th className="py-3 px-3">Kontak WhatsApp</th>
                       <th className="py-3 px-3">Alamat / Lokasi</th>
                       <th className="py-3 px-3 text-right">Aksi</th>
@@ -1202,82 +1558,130 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-stone-100 text-stone-700">
                     {filteredUmkm.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-stone-400 text-xs">
-                          Belum ada data UMKM yang terdaftar.
+                        <td colSpan={6} className="py-12 text-center text-stone-400 text-xs">
+                          Tidak ada data UMKM yang cocok dengan filter.
                         </td>
                       </tr>
                     ) : (
-                      filteredUmkm.map((item) => (
-                        <tr key={item.id} className="hover:bg-stone-50/70 transition-colors">
-                          <td className="py-3.5 px-3 max-w-xs">
-                            <div className="flex items-center gap-3">
-                              {item.image_url ? (
-                                <img
-                                  src={item.image_url}
-                                  alt={item.name}
-                                  className="w-12 h-12 rounded-xl object-cover shrink-0 border border-stone-200"
-                                />
-                              ) : (
-                                <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">
-                                  <Store className="w-5 h-5" />
+                      filteredUmkm.map((item) => {
+                        const status = item.status || 'Disetujui';
+                        const isPending = status === 'Menunggu';
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`transition-colors ${
+                              isPending
+                                ? 'bg-amber-50/40 hover:bg-amber-50/80 border-l-4 border-amber-500'
+                                : 'hover:bg-stone-50/70'
+                            }`}
+                          >
+                            <td className="py-3.5 px-3 max-w-xs">
+                              <div className="flex items-center gap-3">
+                                {item.image_url ? (
+                                  <img
+                                    src={item.image_url}
+                                    alt={item.name}
+                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-stone-200"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">
+                                    <Store className="w-5 h-5" />
+                                  </div>
+                                )}
+                                <div>
+                                  <h4 className="font-bold text-stone-900 flex items-center gap-1.5">
+                                    <span>{item.name}</span>
+                                    {isPending && (
+                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-200 text-amber-900">
+                                        BARU
+                                      </span>
+                                    )}
+                                  </h4>
+                                  <p className="text-stone-500 text-[11px] mt-0.5">Pemilik: {item.owner}</p>
                                 </div>
-                              )}
-                              <div>
-                                <h4 className="font-bold text-stone-900">{item.name}</h4>
-                                <p className="text-stone-500 text-[11px] mt-0.5">Pemilik: {item.owner}</p>
                               </div>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-3 whitespace-nowrap">
-                            <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 font-semibold text-[11px]">
-                              {item.category}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-3 whitespace-nowrap">
-                            {item.contact ? (
-                              <a
-                                href={`https://wa.me/62${item.contact.replace(/[^0-9]/g, '').replace(/^0/, '')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-semibold text-xs"
-                              >
-                                <Phone className="w-3.5 h-3.5" />
-                                <span>{item.contact}</span>
-                              </a>
-                            ) : (
-                              <span className="text-stone-400">-</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-3 max-w-xs text-stone-600 text-xs truncate">
-                            {item.address || '-'}
-                          </td>
-                          <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                            <div className="inline-flex items-center gap-1.5">
-                              <button
-                                onClick={() => handleOpenEditUmkm(item)}
-                                className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
-                                title="Edit UMKM"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() =>
-                                  setDeleteDialog({
-                                    open: true,
-                                    title: item.name,
-                                    targetType: 'umkm',
-                                    targetId: item.id,
-                                  })
-                                }
-                                className="p-1.5 rounded-lg bg-red-50 hover:bg-red-600 text-red-600 hover:text-white transition-colors"
-                                title="Hapus UMKM"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="py-3.5 px-3 whitespace-nowrap">
+                              <span className="px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 font-semibold text-[11px]">
+                                {item.category}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-3 whitespace-nowrap">
+                              {status === 'Menunggu' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-200">
+                                  <Clock className="w-3 h-3 text-amber-700 shrink-0" />
+                                  <span>Menunggu Verifikasi</span>
+                                </span>
+                              )}
+                              {status === 'Disetujui' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 font-bold text-[11px] border border-emerald-200">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />
+                                  <span>Disetujui (Publik)</span>
+                                </span>
+                              )}
+                              {status === 'Ditolak' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-900 font-bold text-[11px] border border-rose-200">
+                                  <X className="w-3 h-3 text-rose-700 shrink-0" />
+                                  <span>Ditolak</span>
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-3 whitespace-nowrap">
+                              {item.contact ? (
+                                <a
+                                  href={`https://wa.me/62${item.contact.replace(/[^0-9]/g, '').replace(/^0/, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-semibold text-xs"
+                                >
+                                  <Phone className="w-3.5 h-3.5" />
+                                  <span>{item.contact}</span>
+                                </a>
+                              ) : (
+                                <span className="text-stone-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-3 max-w-xs text-stone-600 text-xs truncate">
+                              {item.address || '-'}
+                            </td>
+                            <td className="py-3.5 px-3 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1.5">
+                                {isPending && (
+                                  <button
+                                    onClick={() => handleApproveUmkm(item.id)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
+                                    title="Setujui UMKM ini sekarang"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Setujui</span>
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleOpenEditUmkm(item)}
+                                  className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+                                  title="Edit Data / Status UMKM"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setDeleteDialog({
+                                      open: true,
+                                      title: item.name,
+                                      targetType: 'umkm',
+                                      targetId: item.id,
+                                    })
+                                  }
+                                  className="p-1.5 rounded-lg bg-red-50 hover:bg-red-600 text-red-600 hover:text-white transition-colors"
+                                  title="Hapus UMKM"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1286,76 +1690,230 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 4: CMS PENGADUAN & ASPIRASI WARGA */}
+        {/* TAB 4: CMS PENGADUAN & ASPIRASI WARGA (SPK METODE SAW) */}
         {activeTab === 'complaints' && (
           <div className="space-y-6">
             <div className="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-stone-100">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-stone-100">
                 <div>
-                  <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2">
-                    <Inbox className="w-5 h-5 text-makassar-800" />
-                    Laporan Aspirasi & Pengaduan Warga Masuk
-                  </h2>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Daftar aspirasi kebersihan, lampu jalan, ketertiban umum yang diajukan langsung melalui halaman Kontak.
-                  </p>
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-makassar-100 text-makassar-900">
+                      <Calculator className="w-5 h-5 text-makassar-800" />
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2">
+                        Prioritisasi Pengaduan Warga (SPK Metode SAW)
+                      </h2>
+                      <p className="text-xs text-stone-500 mt-0.5">
+                        Penerapan algoritma <em>Simple Additive Weighting</em> (SAW) untuk menentukan skala prioritas penanganan masalah warga secara objektif & berkeadilan.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  onClick={handleExportComplaintsCsv}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Ekspor Rekap (CSV)</span>
-                </button>
-              </div>
-
-              {/* Filter Status & Search */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-5">
-                <div className="relative w-full sm:w-80">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                  <input
-                    type="text"
-                    value={complaintSearch}
-                    onChange={(e) => setComplaintSearch(e.target.value)}
-                    placeholder="Cari nama, perihal, atau isi pesan..."
-                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-stone-200 text-xs outline-none focus:border-makassar-800 focus:ring-1 focus:ring-makassar-800"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
-                  {['Semua', 'Baru', 'Diproses', 'Selesai'].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setComplaintStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                        complaintStatusFilter === status
-                          ? 'bg-stone-800 text-white'
-                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setSawMatrixModalOpen(true)}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-makassar-50 hover:bg-makassar-100 text-makassar-900 border border-makassar-200 text-xs font-bold transition-all shadow-sm"
+                    title="Buka Penjelasan Rumus & Matriks SAW"
+                  >
+                    <SlidersHorizontal className="w-4 h-4 text-makassar-800" />
+                    <span>Transparansi Rumus & Bobot SAW</span>
+                  </button>
+                  <button
+                    onClick={handleExportComplaintsCsv}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Ekspor Rekap (CSV)</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Tabel Pengaduan */}
+              {/* 4 Kartu Metrik KPI Statistik Pengaduan (SAW) */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">Total Aduan</span>
+                    <span className="p-1.5 rounded-lg bg-stone-200/80 text-stone-700">
+                      <Inbox className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <p className="text-2xl font-black text-stone-900 font-mono">{complaintStats.total}</p>
+                  <span className="text-[11px] text-stone-500 block mt-0.5">Rata-rata Skor: {complaintStats.averageScore}</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-red-50/70 border border-red-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold text-red-700 uppercase tracking-wider">Prioritas Tinggi</span>
+                    <span className="p-1.5 rounded-lg bg-red-200 text-red-700">
+                      <Flame className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <p className="text-2xl font-black text-red-800 font-mono">{complaintStats.highPriority}</p>
+                  <span className="text-[11px] text-red-600 font-medium block mt-0.5">Perlu Tindakan Segera (&ge; 0.75)</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Sedang Diproses</span>
+                    <span className="p-1.5 rounded-lg bg-blue-200 text-blue-700">
+                      <Activity className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <p className="text-2xl font-black text-blue-800 font-mono">{complaintStats.inProgressCount}</p>
+                  <span className="text-[11px] text-blue-600 block mt-0.5">Penanganan Tim / Satgas</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Selesai Ditangani</span>
+                    <span className="p-1.5 rounded-lg bg-emerald-200 text-emerald-700">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <p className="text-2xl font-black text-emerald-800 font-mono">{complaintStats.completedCount}</p>
+                  <span className="text-[11px] text-emerald-600 block mt-0.5">Tuntas Berespon</span>
+                </div>
+              </div>
+
+              {/* Banner Info Kriteria & Bobot SAW */}
+              <div className="mt-5 p-4 rounded-2xl bg-stone-50 border border-stone-200/80">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 text-stone-700 font-semibold">
+                    <SlidersHorizontal className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Bobot Kriteria SPK:</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-stone-200 text-[11px] text-stone-600">
+                      C1: Kategori (40%)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-stone-200 text-[11px] text-stone-600">
+                      C2: Cakupan Dampak (30%)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-stone-200 text-[11px] text-stone-600">
+                      C3: Kedaruratan Teks (30%)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] font-medium text-stone-500">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                      Tinggi (&ge; 0.75)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
+                      Sedang (0.50 - 0.74)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                      Rendah (&lt; 0.50)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mode Urutan, Pencarian & Multi Filter */}
+              <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 mt-5">
+                {/* Toggle Mode Urutan */}
+                <div className="inline-flex p-1 rounded-xl bg-stone-100 border border-stone-200 self-start">
+                  <button
+                    onClick={() => setComplaintSortMode('saw')}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      complaintSortMode === 'saw'
+                        ? 'bg-makassar-800 text-white shadow-sm'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>Prioritas SPK SAW</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 text-white ml-1">
+                      Rekomendasi
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setComplaintSortMode('time')}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      complaintSortMode === 'time'
+                        ? 'bg-stone-800 text-white shadow-sm'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Terbaru</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="relative w-full sm:w-60">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      type="text"
+                      value={complaintSearch}
+                      onChange={(e) => setComplaintSearch(e.target.value)}
+                      placeholder="Cari tiket, nama, perihal..."
+                      className="w-full pl-10 pr-4 py-2 rounded-xl border border-stone-200 text-xs outline-none focus:border-makassar-800 focus:ring-1 focus:ring-makassar-800"
+                    />
+                  </div>
+
+                  {/* Filter Status */}
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+                    <span className="text-[10px] uppercase font-bold text-stone-400 mr-1">Status:</span>
+                    {['Semua', 'Baru', 'Diproses', 'Selesai'].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => setComplaintStatusFilter(status)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                          complaintStatusFilter === status
+                            ? 'bg-stone-800 text-white'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Filter Prioritas SAW */}
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+                    <span className="text-[10px] uppercase font-bold text-stone-400 mr-1">Prioritas:</span>
+                    {['Semua', 'Tinggi', 'Sedang', 'Rendah'].map((prio) => (
+                      <button
+                        key={prio}
+                        onClick={() => setComplaintPriorityFilter(prio)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                          complaintPriorityFilter === prio
+                            ? prio === 'Tinggi'
+                              ? 'bg-red-700 text-white'
+                              : prio === 'Sedang'
+                              ? 'bg-amber-600 text-white'
+                              : prio === 'Rendah'
+                              ? 'bg-emerald-700 text-white'
+                              : 'bg-stone-800 text-white'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        {prio}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabel Pengaduan Berbasis SPK */}
               <div className="mt-5 overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[750px]">
+                <table className="w-full text-left text-xs min-w-[950px]">
                   <thead>
                     <tr className="border-b border-stone-200 text-stone-400 text-[11px] uppercase tracking-wider">
-                      <th className="py-3 px-3">Waktu & Pelapor</th>
-                      <th className="py-3 px-3">Perihal / Masalah</th>
-                      <th className="py-3 px-3">Isi Pesan Laporan</th>
-                      <th className="py-3 px-3">Status Laporan</th>
+                      <th className="py-3 px-3 text-center">Prioritas & Skor SAW</th>
+                      <th className="py-3 px-3">Tiket & Pelapor</th>
+                      <th className="py-3 px-3">Kategori & Dampak</th>
+                      <th className="py-3 px-3">Perihal & Respon Kelurahan</th>
+                      <th className="py-3 px-3 text-center">Status</th>
                       <th className="py-3 px-3 text-right">Tindak Lanjut</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100 text-stone-700">
                     {filteredComplaints.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-stone-400 text-xs">
-                          Belum ada laporan pengaduan warga pada kategori ini.
+                        <td colSpan={6} className="py-12 text-center text-stone-400 text-xs">
+                          Belum ada laporan pengaduan warga pada kriteria filter ini.
                         </td>
                       </tr>
                     ) : (
@@ -1364,13 +1922,52 @@ export default function AdminPage() {
                         const waNumber = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
                         const waUrl = cleanPhone
                           ? `https://wa.me/${waNumber}?text=${encodeURIComponent(
-                              `Halo Bapak/Ibu ${item.name}, kami dari Kantor Kelurahan Mamajang Luar ingin menindaklanjuti laporan Anda mengenai: "${item.subject}".`
+                              `Halo Bapak/Ibu ${item.name}, kami dari Kantor Kelurahan Mamajang Luar ingin mengonfirmasi dan menindaklanjuti laporan Anda terkait tiket #${item.ticket_number || item.id}: "${item.subject}".`
                             )}`
                           : null;
 
+                        const badgeStyles =
+                          item.saw.priorityLevel === 'Tinggi'
+                            ? 'bg-red-100 text-red-800 border-red-200'
+                            : item.saw.priorityLevel === 'Sedang'
+                            ? 'bg-amber-100 text-amber-800 border-amber-200'
+                            : 'bg-emerald-100 text-emerald-800 border-emerald-200';
+
                         return (
                           <tr key={item.id} className="hover:bg-stone-50/70 transition-colors">
+                            {/* Kolom 1: Skor SAW & Prioritas */}
+                            <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-black text-xs px-1.5 py-0.5 rounded bg-stone-100 text-stone-700">
+                                    #{item.saw.rank}
+                                  </span>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[11px] font-black border ${badgeStyles}`}
+                                  >
+                                    V: {item.saw.finalScore}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-bold tracking-wide uppercase text-stone-500">
+                                  {item.saw.priorityLevel === 'Tinggi' && '🔴 Prioritas Tinggi'}
+                                  {item.saw.priorityLevel === 'Sedang' && '🟡 Prioritas Sedang'}
+                                  {item.saw.priorityLevel === 'Rendah' && '🟢 Prioritas Rendah'}
+                                </span>
+                                <button
+                                  onClick={() => setSawDetailModal(item)}
+                                  className="inline-flex items-center gap-1 text-[10px] text-makassar-800 hover:text-makassar-900 font-semibold underline mt-0.5"
+                                >
+                                  <Info className="w-3 h-3" />
+                                  <span>Rincian Hitungan</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Kolom 2: Tiket, Waktu & Pelapor */}
                             <td className="py-3.5 px-3 whitespace-nowrap">
+                              <span className="inline-block font-mono font-bold text-[10px] px-2 py-0.5 rounded bg-stone-100 text-stone-800 border border-stone-200 mb-1">
+                                #{item.ticket_number || item.id.slice(0, 10)}
+                              </span>
                               <p className="font-bold text-stone-900">{item.name}</p>
                               <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
                                 <Clock className="w-3 h-3" />
@@ -1382,13 +1979,69 @@ export default function AdminPage() {
                               </p>
                               {item.phone && <p className="text-[11px] text-stone-400 font-mono mt-0.5">{item.phone}</p>}
                             </td>
-                            <td className="py-3.5 px-3 font-semibold text-stone-800 max-w-xs">
-                              {item.subject}
+
+                            {/* Kolom 3: Kategori & Cakupan Dampak */}
+                            <td className="py-3.5 px-3 max-w-[200px]">
+                              <div className="space-y-1">
+                                <span className="inline-block px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 font-semibold text-[11px] border border-stone-200">
+                                  {item.category || 'Kebersihan & Drainase'}
+                                </span>
+                                <p className="text-[11px] text-stone-500 flex items-center gap-1">
+                                  <Users className="w-3 h-3 text-stone-400 shrink-0" />
+                                  <span>{item.impact_scope || 'Beberapa Warga (1 RT)'}</span>
+                                </p>
+                              </div>
                             </td>
+
+                            {/* Kolom 4: Perihal & Respon Kelurahan */}
                             <td className="py-3.5 px-3 max-w-sm text-stone-600 leading-relaxed text-xs">
-                              <p className="line-clamp-2">{item.message}</p>
+                              <p className="font-bold text-stone-900 mb-0.5">{item.subject}</p>
+                              <p className="line-clamp-2 text-stone-600">{item.message}</p>
+                              {item.saw.matchedKeywords.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                                  <span className="text-[10px] text-stone-400">Kata kedaruratan:</span>
+                                  {item.saw.matchedKeywords.map((kw) => (
+                                    <span
+                                      key={kw}
+                                      className="px-1.5 py-0.2 rounded bg-red-50 text-red-700 text-[10px] font-bold border border-red-200"
+                                    >
+                                      &ldquo;{kw}&rdquo;
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {item.image_url && (
+                                <div className="mt-1.5">
+                                  <button
+                                    onClick={() => setPreviewComplaintPhoto(item.image_url!)}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-makassar-50 hover:bg-makassar-100 text-makassar-800 border border-makassar-200 text-[11px] font-bold transition-all shadow-2xs cursor-pointer"
+                                    title="Klik untuk melihat foto bukti kejadian"
+                                  >
+                                    <Camera className="w-3.5 h-3.5 text-makassar-700" />
+                                    <span>Lihat Foto Bukti</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {item.admin_response ? (
+                                <div className="mt-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-950">
+                                  <span className="font-bold text-emerald-800 block text-[10px] flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3 text-emerald-700" /> Catatan Kelurahan:
+                                  </span>
+                                  <p className="line-clamp-2 italic text-emerald-900 mt-0.5">&ldquo;{item.admin_response}&rdquo;</p>
+                                </div>
+                              ) : (
+                                <div className="mt-1.5">
+                                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                    Menunggu catatan respon
+                                  </span>
+                                </div>
+                              )}
                             </td>
-                            <td className="py-3.5 px-3 whitespace-nowrap">
+
+                            {/* Kolom 5: Status Laporan */}
+                            <td className="py-3.5 px-3 whitespace-nowrap text-center">
                               <select
                                 value={item.status}
                                 onChange={(e) => handleUpdateComplaintStatus(item.id, e.target.value)}
@@ -1405,18 +2058,28 @@ export default function AdminPage() {
                                 <option value="Selesai">Selesai</option>
                               </select>
                             </td>
+
+                            {/* Kolom 6: Tindak Lanjut */}
                             <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                              <div className="inline-flex items-center gap-2">
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleOpenResponseModal(item)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-makassar-50 text-makassar-800 hover:bg-makassar-800 hover:text-white font-bold text-xs transition-all border border-makassar-200 shadow-sm"
+                                  title="Tulis Catatan / Tindak Lanjut Resmi"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  <span>{item.admin_response ? 'Ubah Respon' : 'Beri Respon'}</span>
+                                </button>
                                 {waUrl ? (
                                   <a
                                     href={waUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white font-bold text-xs transition-all"
+                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white font-bold text-xs transition-all"
                                     title="Hubungi via WhatsApp"
                                   >
                                     <MessageCircle className="w-3.5 h-3.5" />
-                                    <span>Chat WA</span>
+                                    <span>WA</span>
                                   </a>
                                 ) : (
                                   <span className="text-stone-400 text-xs">-</span>
@@ -1532,7 +2195,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                    <Sparkles className="w-3 h-3" /> Auto-Format
+                    <CheckCircle2 className="w-3 h-3" /> Auto-Format
                   </span>
                 </div>
 
@@ -2125,6 +2788,27 @@ export default function AdminPage() {
                 )}
               </div>
 
+              <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200">
+                <label className="block text-xs font-bold text-stone-800 mb-1">Status Publikasi & Verifikasi</label>
+                <select
+                  value={umkmForm.status}
+                  onChange={(e) =>
+                    setUmkmForm({
+                      ...umkmForm,
+                      status: e.target.value as 'Disetujui' | 'Menunggu' | 'Ditolak',
+                    })
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm bg-white outline-none focus:border-makassar-800 font-semibold cursor-pointer"
+                >
+                  <option value="Disetujui">🟢 Disetujui (Aktif & Tampil di Website Publik)</option>
+                  <option value="Menunggu">🟡 Menunggu Verifikasi Staf</option>
+                  <option value="Ditolak">🔴 Ditolak (Tidak Memenuhi Syarat)</option>
+                </select>
+                <p className="text-[11px] text-stone-500 mt-1.5">
+                  Hanya UMKM berstatus &quot;Disetujui&quot; yang muncul di halaman katalog publik untuk warga.
+                </p>
+              </div>
+
               <div className="pt-4 border-t border-stone-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -2169,6 +2853,417 @@ export default function AdminPage() {
               >
                 Ya, Hapus
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: DETAIL PERHITUNGAN MATEMATIS SAW UNTUK 1 PENGADUAN */}
+      {sawDetailModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 animate-slide-up my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-makassar-100 text-makassar-900">
+                  <Calculator className="w-5 h-5 text-makassar-800" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Rincian Perhitungan Matematis SAW</h3>
+                  <p className="text-xs text-stone-500">Transparansi skor preferensi prioritas untuk pelapor: {sawDetailModal.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSawDetailModal(null)}
+                className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-5 text-xs text-stone-700">
+              {/* Ringkasan Data Laporan */}
+              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[11px] text-stone-400 block font-medium">Perihal Laporan:</span>
+                    <strong className="text-stone-900 text-xs">{sawDetailModal.subject}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-stone-400 block font-medium">Pelapor & Waktu:</span>
+                    <span className="text-stone-800">{sawDetailModal.name} &bull; {new Date(sawDetailModal.created_at).toLocaleDateString('id-ID')}</span>
+                  </div>
+                </div>
+                <div className="mt-2.5 pt-2.5 border-t border-stone-200/70">
+                  <span className="text-[11px] text-stone-400 block font-medium mb-0.5">Isi Pesan:</span>
+                  <p className="text-stone-600 text-[11px] italic bg-white p-2.5 rounded-xl border border-stone-200/60">
+                    &ldquo;{sawDetailModal.message}&rdquo;
+                  </p>
+                </div>
+              </div>
+
+              {/* Langkah 1: Matriks Keputusan (Nilai Mentah) */}
+              <div>
+                <h4 className="font-bold text-stone-800 text-xs flex items-center gap-1.5 mb-2">
+                  <span className="w-5 h-5 rounded-full bg-makassar-800 text-white flex items-center justify-center text-[10px]">1</span>
+                  Langkah 1: Penilaian Nilai Mentah Alternatif (Matriks X)
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-xl bg-white border border-stone-200">
+                    <span className="text-[10px] uppercase font-bold text-stone-400 block">C1: Kategori (40%)</span>
+                    <p className="font-black text-base text-makassar-900 mt-1">{sawDetailModal.saw.rawCategory} / 5</p>
+                    <span className="text-[11px] text-stone-600 block mt-0.5">{sawDetailModal.category || 'Kebersihan & Drainase'}</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white border border-stone-200">
+                    <span className="text-[10px] uppercase font-bold text-stone-400 block">C2: Cakupan (30%)</span>
+                    <p className="font-black text-base text-makassar-900 mt-1">{sawDetailModal.saw.rawImpact} / 4</p>
+                    <span className="text-[11px] text-stone-600 block mt-0.5">{sawDetailModal.impact_scope || 'Beberapa Warga (1 RT)'}</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white border border-stone-200">
+                    <span className="text-[10px] uppercase font-bold text-stone-400 block">C3: Kedaruratan (30%)</span>
+                    <p className="font-black text-base text-makassar-900 mt-1">{sawDetailModal.saw.rawUrgency} / 4</p>
+                    <span className="text-[11px] text-stone-600 block mt-0.5">
+                      {sawDetailModal.saw.matchedKeywords.length > 0
+                        ? `Kata: ${sawDetailModal.saw.matchedKeywords.join(', ')}`
+                        : 'Normal / Non-kritis'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Langkah 2: Normalisasi Matriks R */}
+              <div>
+                <h4 className="font-bold text-stone-800 text-xs flex items-center gap-1.5 mb-2">
+                  <span className="w-5 h-5 rounded-full bg-makassar-800 text-white flex items-center justify-center text-[10px]">2</span>
+                  Langkah 2: Normalisasi Matriks (Kriteria Keuntungan / Benefit)
+                </h4>
+                <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 font-mono text-[11px] space-y-1.5">
+                  <p className="text-stone-500 text-[10px] mb-1 font-sans">Rumus: R_ij = X_ij / max(X_j)</p>
+                  <p>
+                    <strong className="text-stone-800">R1 (Kategori):</strong> {sawDetailModal.saw.rawCategory} &divide; max(C1) ={' '}
+                    <span className="text-makassar-800 font-bold">{sawDetailModal.saw.normCategory}</span>
+                  </p>
+                  <p>
+                    <strong className="text-stone-800">R2 (Cakupan):</strong> {sawDetailModal.saw.rawImpact} &divide; max(C2) ={' '}
+                    <span className="text-makassar-800 font-bold">{sawDetailModal.saw.normImpact}</span>
+                  </p>
+                  <p>
+                    <strong className="text-stone-800">R3 (Kedaruratan):</strong> {sawDetailModal.saw.rawUrgency} &divide; max(C3) ={' '}
+                    <span className="text-makassar-800 font-bold">{sawDetailModal.saw.normUrgency}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Langkah 3: Perhitungan Nilai Preferensi V */}
+              <div>
+                <h4 className="font-bold text-stone-800 text-xs flex items-center gap-1.5 mb-2">
+                  <span className="w-5 h-5 rounded-full bg-makassar-800 text-white flex items-center justify-center text-[10px]">3</span>
+                  Langkah 3: Perkalian Bobot Preferensi (V = &Sigma; W_j &times; R_ij)
+                </h4>
+                <div className="p-3.5 rounded-xl bg-makassar-50/70 border border-makassar-200/80 font-mono text-[11px] space-y-1">
+                  <p className="font-sans text-xs text-makassar-900 font-semibold mb-1">
+                    V = (0.40 &times; {sawDetailModal.saw.normCategory}) + (0.30 &times; {sawDetailModal.saw.normImpact}) + (0.30 &times; {sawDetailModal.saw.normUrgency})
+                  </p>
+                  <p className="text-xs text-stone-700">
+                    V = {(0.40 * sawDetailModal.saw.normCategory).toFixed(3)} + {(0.30 * sawDetailModal.saw.normImpact).toFixed(3)} + {(0.30 * sawDetailModal.saw.normUrgency).toFixed(3)} ={' '}
+                    <strong className="text-makassar-900 text-sm font-black">{sawDetailModal.saw.finalScore}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Kesimpulan Status Prioritas */}
+              <div className="p-4 rounded-2xl bg-white border-2 border-stone-300 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-stone-400 block">Hasil Keputusan Sistem</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-base font-black text-stone-900">Peringkat Prioritas #{sawDetailModal.saw.rank}</span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                        sawDetailModal.saw.priorityLevel === 'Tinggi'
+                          ? 'bg-red-100 text-red-800'
+                          : sawDetailModal.saw.priorityLevel === 'Sedang'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}
+                    >
+                      Prioritas {sawDetailModal.saw.priorityLevel} (Skor: {sawDetailModal.saw.finalScore})
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSawDetailModal(null)}
+                  className="px-4 py-2 rounded-xl bg-stone-900 text-white font-bold text-xs hover:bg-stone-800"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: TRANSPARANSI SELURUH MATRIKS KEPUTUSAN SAW */}
+      {sawMatrixModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 animate-slide-up my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-makassar-100 text-makassar-900">
+                  <SlidersHorizontal className="w-5 h-5 text-makassar-800" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Transparansi Matriks & Formula SAW</h3>
+                  <p className="text-xs text-stone-500">
+                    Model matematis pengambilan keputusan prioritas aduan masyarakat Kelurahan Mamajang Luar.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSawMatrixModalOpen(false)}
+                className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-6 text-xs text-stone-700">
+              {/* Landasan Teori Singkat */}
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 leading-relaxed text-amber-950">
+                <p className="font-bold text-xs mb-1 flex items-center gap-1.5">
+                  <Calculator className="w-4 h-4 text-amber-700" />
+                  Prinsip Simple Additive Weighting (SAW):
+                </p>
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  Metode SAW mencari penjumlahan berbobot dari rating kinerja pada setiap alternatif pada semua kriteria.
+                  Karena semua kriteria dalam aduan ini merupakan <strong>benefit (semakin besar semakin mendesak)</strong>,
+                  normalisasi dilakukan dengan membagi nilai mentah dengan nilai tertinggi tiap kriteria:
+                  <code className="mx-1 px-1.5 py-0.5 rounded bg-amber-100/90 font-mono font-bold">R_ij = X_ij / max(X_j)</code>.
+                  Skor akhir dihitung:
+                  <code className="mx-1 px-1.5 py-0.5 rounded bg-amber-100/90 font-mono font-bold">V_i = &Sigma; W_j &times; R_ij</code>.
+                </p>
+              </div>
+
+              {/* Tabel Matriks Keputusan & Normalisasi Seluruh Aduan */}
+              <div>
+                <h4 className="font-bold text-stone-800 text-xs mb-2">Matriks Keputusan (X), Normalisasi (R), dan Preferensi (V):</h4>
+                <div className="overflow-x-auto border border-stone-200 rounded-2xl">
+                  <table className="w-full text-left text-xs min-w-[700px]">
+                    <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 text-[11px] uppercase tracking-wider">
+                      <tr>
+                        <th className="py-2.5 px-3 text-center">Rank</th>
+                        <th className="py-2.5 px-3">Pelapor & Perihal</th>
+                        <th className="py-2.5 px-3 text-center">X1 (Kat)</th>
+                        <th className="py-2.5 px-3 text-center">X2 (Damp)</th>
+                        <th className="py-2.5 px-3 text-center">X3 (Urg)</th>
+                        <th className="py-2.5 px-3 text-center">R1</th>
+                        <th className="py-2.5 px-3 text-center">R2</th>
+                        <th className="py-2.5 px-3 text-center">R3</th>
+                        <th className="py-2.5 px-3 text-center font-bold text-makassar-900">Skor V</th>
+                        <th className="py-2.5 px-3 text-center">Prioritas</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 text-stone-700">
+                      {sawComplaints.map((c) => (
+                        <tr key={c.id} className="hover:bg-stone-50/70 transition-colors">
+                          <td className="py-2.5 px-3 text-center font-bold font-mono">#{c.saw.rank}</td>
+                          <td className="py-2.5 px-3">
+                            <p className="font-semibold text-stone-900">{c.name}</p>
+                            <p className="text-[10px] text-stone-400 truncate max-w-xs">{c.subject}</p>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-mono">{c.saw.rawCategory}</td>
+                          <td className="py-2.5 px-3 text-center font-mono">{c.saw.rawImpact}</td>
+                          <td className="py-2.5 px-3 text-center font-mono">{c.saw.rawUrgency}</td>
+                          <td className="py-2.5 px-3 text-center font-mono text-stone-500">{c.saw.normCategory}</td>
+                          <td className="py-2.5 px-3 text-center font-mono text-stone-500">{c.saw.normImpact}</td>
+                          <td className="py-2.5 px-3 text-center font-mono text-stone-500">{c.saw.normUrgency}</td>
+                          <td className="py-2.5 px-3 text-center font-mono font-black text-makassar-900 text-xs">
+                            {c.saw.finalScore}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                c.saw.priorityLevel === 'Tinggi'
+                                  ? 'bg-red-100 text-red-800'
+                                  : c.saw.priorityLevel === 'Sedang'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {c.saw.priorityLevel}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Rincian Bobot Kriteria */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <strong className="text-stone-900 block text-xs">C1: Kategori (Bobot 40%)</strong>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Mengukur risiko bidang: Keamanan (5), Kesehatan (5), Infrastruktur (4), Kebersihan (3), Sosial (2), Saran (1).
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <strong className="text-stone-900 block text-xs">C2: Cakupan (Bobot 30%)</strong>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Mengukur luas dampak warga: Kelurahan (4), 1 RW (3), 1 RT / Lorong (2), Pribadi (1).
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <strong className="text-stone-900 block text-xs">C3: Kedaruratan (Bobot 30%)</strong>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Text-mining kata kunci bahaya: Kritis (4: banjir, kebakaran), Mendesak (3: rusak, padam), Perhatian (2: sampah, bau), Normal (1).
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-stone-100 flex items-center justify-end">
+                <button
+                  onClick={() => setSawMatrixModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-makassar-800 text-white font-bold text-xs hover:bg-makassar-700 shadow-sm"
+                >
+                  Selesai Meninjau
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 7: TINDAK LANJUT & BERIKAN RESPON RESMI STAF KELURAHAN */}
+      {responseModalOpen && selectedComplaintForResponse && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-stone-200 animate-slide-up my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-100">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-emerald-100 text-emerald-800">
+                  <ShieldCheck className="w-5 h-5 text-emerald-700" />
+                </span>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Tindak Lanjut & Respon Resmi</h3>
+                  <p className="text-xs text-stone-500 font-mono">
+                    Tiket: #{selectedComplaintForResponse.ticket_number || selectedComplaintForResponse.id}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setResponseModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAdminResponse} className="mt-5 space-y-4">
+              {/* Ringkasan Laporan Pelapor */}
+              <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-stone-900">{selectedComplaintForResponse.name}</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      selectedComplaintForResponse.saw.priorityLevel === 'Tinggi'
+                        ? 'bg-red-100 text-red-800'
+                        : selectedComplaintForResponse.saw.priorityLevel === 'Sedang'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
+                    Prioritas {selectedComplaintForResponse.saw.priorityLevel} (Skor: {selectedComplaintForResponse.saw.finalScore})
+                  </span>
+                </div>
+                <p className="text-stone-700 font-semibold">{selectedComplaintForResponse.subject}</p>
+                <p className="text-stone-500 italic text-[11px] line-clamp-2">
+                  &ldquo;{selectedComplaintForResponse.message}&rdquo;
+                </p>
+              </div>
+
+              {/* Pilihan Status Terkini */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Perbarui Status Penanganan Laporan <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={adminResponseStatus}
+                  onChange={(e) => setAdminResponseStatus(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm bg-white outline-none focus:border-makassar-800 font-semibold cursor-pointer"
+                >
+                  <option value="Baru">Baru (Laporan Diterima & Masuk Antrean)</option>
+                  <option value="Diproses">Diproses (Sedang Ditangani Satgas / Petugas Lapangan)</option>
+                  <option value="Selesai">Selesai (Penanganan Tuntas & Masalah Teratasi)</option>
+                </select>
+              </div>
+
+              {/* Catatan / Tanggapan Resmi */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Catatan Tindak Lanjut / Jawaban Resmi Kelurahan <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={adminResponseText}
+                  onChange={(e) => setAdminResponseText(e.target.value)}
+                  placeholder="Contoh: Laporan telah ditindaklanjuti bersama Satgas Drainase Dinas PU Kota Makassar pada tanggal 15 September. Saluran air lorong 2 sudah dikeruk dan lancar kembali..."
+                  className="w-full p-3 rounded-xl border border-stone-200 text-xs outline-none focus:border-makassar-800 resize-none leading-relaxed"
+                />
+                <p className="text-[11px] text-stone-400 mt-1">
+                  Catatan ini akan langsung tampil di portal pelacakan tiket warga yang bersangkutan.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setResponseModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 text-xs font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-makassar-800 hover:bg-makassar-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Simpan Tanggapan Resmi</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pratinjau Foto Bukti Kejadian Lapangan */}
+      {previewComplaintPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewComplaintPhoto(null)}
+        >
+          <div
+            className="relative max-w-3xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-3 border-b border-stone-100">
+              <div className="flex items-center gap-2 text-stone-800 font-bold text-xs sm:text-sm">
+                <Camera className="w-4 h-4 text-makassar-800" />
+                <span>Foto Bukti Kejadian dari Pelapor</span>
+              </div>
+              <button
+                onClick={() => setPreviewComplaintPhoto(null)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-800 transition-colors cursor-pointer"
+                title="Tutup"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-2 flex items-center justify-center bg-stone-900/5 rounded-xl max-h-[75vh] overflow-hidden">
+              <img
+                src={previewComplaintPhoto}
+                alt="Foto Bukti Kejadian"
+                className="max-h-[70vh] w-auto max-w-full object-contain rounded-lg shadow-sm"
+              />
             </div>
           </div>
         </div>

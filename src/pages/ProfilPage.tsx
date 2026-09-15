@@ -23,7 +23,6 @@ import {
   Home,
   Check,
   Layers,
-  Sparkles,
   HeartPulse,
 } from 'lucide-react';
 

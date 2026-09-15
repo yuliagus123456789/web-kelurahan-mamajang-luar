@@ -11,14 +11,16 @@ import {
   Users,
   MapPin,
   Phone,
-  Clock,
   ShieldCheck,
   HeartHandshake,
-  Sparkles,
+  Landmark,
   ChevronRight,
+  Send,
+  Search,
 } from 'lucide-react';
 
 import { KELURAHAN_CONFIG } from '@/lib/config';
+import HomeSpkTracker from '@/components/HomeSpkTracker';
 
 const heroImg =
   'https://images.pexels.com/photos/2355062/pexels-photo-2355062.jpeg?auto=compress&cs=tinysrgb&h=650&w=940';
@@ -30,21 +32,22 @@ const stats = [
   { label: 'UMKM & Potensi Warga', value: '36+', suffix: 'Usaha Terdata Resmi' },
 ];
 
-const highlights = [
-  {
-    icon: ShieldCheck,
-    title: 'Pelayanan Prima',
-    desc: 'Melayani administrasi kependudukan dengan cepat, transparan, dan akuntabel.',
-  },
+const highlightPrimary = {
+  icon: ShieldCheck,
+  title: 'Pelayanan Prima',
+  desc: 'Melayani administrasi kependudukan dengan cepat, transparan, dan akuntabel sesuai standar pelayanan minimal kelurahan.',
+};
+
+const highlightSecondary = [
   {
     icon: HeartHandshake,
     title: 'Gotong Royong',
     desc: 'Menjaga semangat kebersamaan dan kepedulian sosial antarwarga.',
   },
   {
-    icon: Sparkles,
-    title: 'Inovasi Digital',
-    desc: 'Menghadirkan layanan berbasis digital untuk kemudahan warga.',
+    icon: Landmark,
+    title: 'Layanan Digital',
+    desc: 'Pengurusan surat dan pengaduan kini bisa diakses melalui portal ini.',
   },
 ];
 
@@ -87,24 +90,19 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Hero */}
-      <section className="relative min-h-[88vh] flex items-center overflow-hidden">
+      {/* Hero — anti-slop: no floating particles, no capsule badge, reduced height */}
+      <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img src={heroImg} alt="Mamajang Luar" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-stone-900/90 via-makassar-950/70 to-makassar-900/40" />
         </div>
 
-        {/* Floating Particles */}
-        <div className="hero-particle absolute top-1/4 left-1/4 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-        <div className="hero-particle absolute top-1/3 right-1/4 w-48 h-48 bg-makassar-400/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
-        <div className="hero-particle absolute bottom-1/4 left-1/3 w-40 h-40 bg-gold-400/10 rounded-full blur-2xl animate-float" style={{ animationDelay: '2s' }}></div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-28">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gold-500/20 backdrop-blur-sm border border-gold-400/30 text-gold-300 text-sm font-medium mb-6 animate-fade-in-up">
+            <p className="flex items-center gap-2 text-gold-300 text-sm font-medium mb-6 animate-fade-in-up">
               <MapPin className="w-4 h-4" />
               Kota Makassar, Sulawesi Selatan
-            </span>
+            </p>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
               Selamat Datang di <span className="text-gold-400">Kelurahan Mamajang Luar</span>
             </h1>
@@ -112,18 +110,28 @@ export default function HomePage() {
               Sistem informasi resmi Kelurahan Mamajang Luar. Temukan informasi layanan publik,
               berita terkini, potensi UMKM warga, serta saluran pengaduan dalam satu portal.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            <div className="mt-8 flex flex-wrap items-center gap-3.5 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+              <Link
+                to="/kontak"
+                className="shimmer-btn px-6 py-3 rounded-xl bg-makassar-800 text-white font-semibold hover:bg-makassar-700 transition-colors shadow-lg shadow-makassar-800/30 inline-flex items-center gap-2 text-sm"
+              >
+                <Send className="w-4 h-4 text-gold-300" />
+                <span>Laporkan Pengaduan</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <a
+                href="#spk-tracker-section"
+                className="px-5 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold hover:bg-white/20 transition-colors inline-flex items-center gap-2 text-sm"
+              >
+                <Search className="w-4 h-4 text-gold-300" />
+                <span>Lacak Tiket Aduan</span>
+              </a>
               <Link
                 to="/layanan"
-                className="shimmer-btn px-6 py-3 rounded-xl bg-makassar-800 text-white font-semibold hover:bg-makassar-700 transition-colors shadow-lg shadow-makassar-800/30 inline-flex items-center gap-2"
+                className="px-4 py-3 rounded-xl text-stone-300 hover:text-white font-medium text-xs sm:text-sm underline-offset-4 hover:underline inline-flex items-center gap-1.5 transition-colors"
               >
-                Layanan Publik <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link
-                to="/berita"
-                className="px-6 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold hover:bg-white/20 transition-colors inline-flex items-center gap-2"
-              >
-                Berita Terbaru
+                <span>Prosedur Layanan</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -145,22 +153,39 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Highlights */}
+      {/* Centerpiece: Interactive SPK SAW Complaint & Ticket Tracking Widget */}
+      <HomeSpkTracker />
+
+      {/* Highlights — anti-slop: varied layout, primary card larger than secondary */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {highlights.map((h, i) => (
-            <div
-              key={h.title}
-              className="group p-8 rounded-2xl bg-white border border-stone-100 hover:border-makassar-200 hover:shadow-lg transition-all animate-fade-in-up"
-              style={{ animationDelay: `${0.1 * i}s` }}
-            >
-              <div className="w-14 h-14 rounded-xl bg-makassar-50 flex items-center justify-center mb-5 group-hover:bg-makassar-100 transition-colors">
-                <h.icon className="w-7 h-7 text-makassar-800" />
-              </div>
-              <h3 className="text-lg font-bold text-stone-800 mb-2">{h.title}</h3>
-              <p className="text-sm text-stone-500 leading-relaxed">{h.desc}</p>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          {/* Primary highlight — spans 3 cols, visually heavier */}
+          <div
+            className="md:col-span-3 group p-8 sm:p-10 rounded-2xl bg-makassar-800 text-white hover:bg-makassar-900 transition-colors animate-fade-in-up"
+          >
+            <div className="w-14 h-14 rounded-xl bg-white/15 flex items-center justify-center mb-5">
+              <highlightPrimary.icon className="w-7 h-7 text-gold-300" />
             </div>
-          ))}
+            <h3 className="text-xl font-bold mb-2">{highlightPrimary.title}</h3>
+            <p className="text-makassar-100 leading-relaxed max-w-md">{highlightPrimary.desc}</p>
+          </div>
+
+          {/* Secondary highlights — span 2 cols, stacked */}
+          <div className="md:col-span-2 flex flex-col gap-6">
+            {highlightSecondary.map((h, i) => (
+              <div
+                key={h.title}
+                className="group p-6 rounded-2xl bg-white border border-stone-100 hover:border-makassar-200 hover:shadow-lg transition-all animate-fade-in-up flex-1"
+                style={{ animationDelay: `${0.1 * (i + 1)}s` }}
+              >
+                <div className="w-12 h-12 rounded-lg bg-makassar-50 flex items-center justify-center mb-4 group-hover:bg-makassar-100 transition-colors">
+                  <h.icon className="w-6 h-6 text-makassar-800" />
+                </div>
+                <h3 className="text-base font-bold text-stone-800 mb-1">{h.title}</h3>
+                <p className="text-sm text-stone-500 leading-relaxed">{h.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -206,47 +231,88 @@ export default function HomePage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="bg-white rounded-2xl border border-stone-100 overflow-hidden animate-pulse">
-                <div className="h-48 bg-stone-200" />
-                <div className="p-5 space-y-3">
-                  <div className="h-4 bg-stone-200 rounded w-20" />
-                  <div className="h-5 bg-stone-200 rounded w-full" />
-                  <div className="h-4 bg-stone-200 rounded w-3/4" />
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden animate-pulse">
+              <div className="h-64 bg-stone-200" />
+              <div className="p-6 space-y-3">
+                <div className="h-4 bg-stone-200 rounded w-24" />
+                <div className="h-6 bg-stone-200 rounded w-full" />
+                <div className="h-4 bg-stone-200 rounded w-3/4" />
               </div>
-            ))}
+            </div>
+            <div className="flex flex-col gap-4">
+              {[0, 1].map((i) => (
+                <div key={i} className="bg-white rounded-xl border border-stone-100 overflow-hidden animate-pulse flex">
+                  <div className="w-32 h-28 bg-stone-200 shrink-0" />
+                  <div className="p-4 space-y-2 flex-1">
+                    <div className="h-3 bg-stone-200 rounded w-16" />
+                    <div className="h-4 bg-stone-200 rounded w-full" />
+                    <div className="h-3 bg-stone-200 rounded w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {news.map((item) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Featured news — first item, larger */}
+            {news[0] && (
               <Link
-                key={item.id}
-                to={`/berita/${item.id}`}
+                key={news[0].id}
+                to={`/berita/${news[0].id}`}
                 className="group bg-white rounded-2xl border border-stone-100 overflow-hidden hover:shadow-xl transition-all"
               >
-                <div className="h-48 overflow-hidden">
+                <div className="h-64 overflow-hidden">
                   <img
-                    src={item.image_url ?? ''}
-                    alt={item.title}
+                    src={news[0].image_url ?? ''}
+                    alt={news[0].title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
-                <div className="p-5">
-                  <span className="inline-block px-3 py-1 rounded-full bg-makassar-50 text-makassar-800 text-xs font-medium mb-3">
-                    {item.category}
+                <div className="p-6">
+                  <span className="inline-block px-3 py-1 rounded-lg bg-makassar-50 text-makassar-800 text-xs font-medium mb-3">
+                    {news[0].category}
                   </span>
-                  <h3 className="font-bold text-stone-800 leading-snug mb-2 line-clamp-2 group-hover:text-makassar-800 transition-colors">
-                    {item.title}
+                  <h3 className="text-lg font-bold text-stone-800 leading-snug mb-2 line-clamp-2 group-hover:text-makassar-800 transition-colors">
+                    {news[0].title}
                   </h3>
-                  <p className="text-sm text-stone-500 line-clamp-2">{item.excerpt}</p>
+                  <p className="text-sm text-stone-500 line-clamp-3">{news[0].excerpt}</p>
                   <p className="text-xs text-stone-400 mt-3">
-                    {new Date(item.published_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {new Date(news[0].published_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 </div>
               </Link>
-            ))}
+            )}
+
+            {/* Supporting news — smaller horizontal cards */}
+            <div className="flex flex-col gap-4">
+              {news.slice(1).map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/berita/${item.id}`}
+                  className="group bg-white rounded-xl border border-stone-100 overflow-hidden hover:shadow-lg transition-all flex"
+                >
+                  <div className="w-32 sm:w-40 h-full overflow-hidden shrink-0">
+                    <img
+                      src={item.image_url ?? ''}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-4 flex flex-col justify-center">
+                    <span className="inline-block w-fit px-2 py-0.5 rounded-md bg-makassar-50 text-makassar-800 text-[11px] font-medium mb-2">
+                      {item.category}
+                    </span>
+                    <h3 className="font-bold text-sm text-stone-800 leading-snug mb-1 line-clamp-2 group-hover:text-makassar-800 transition-colors">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-stone-400">
+                      {new Date(item.published_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </section>
@@ -312,27 +378,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA — anti-slop: no floating circles, no decorative icon */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-makassar-800 to-makassar-950 p-10 sm:p-16 text-center">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/3 animate-float" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full translate-y-1/2 -translate-x-1/3 animate-float" style={{ animationDelay: '2s' }} />
-          </div>
-          <div className="relative">
-            <Clock className="w-12 h-12 text-makassar-300 mx-auto mb-4" />
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Butuh Bantuan atau Ingin Menyampaikan Pengaduan?</h2>
-            <p className="text-makassar-100 max-w-xl mx-auto mb-8">
-              Tim pelayanan Kelurahan Mamajang Luar siap membantu kebutuhan administrasi dan
-              menampung setiap saran serta pengaduan warga.
-            </p>
-            <Link
-              to="/kontak"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-makassar-800 font-semibold hover:bg-makassar-50 transition-colors shadow-lg"
-            >
-              Sampaikan Pengaduan <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+        <div className="rounded-3xl bg-gradient-to-br from-makassar-800 to-makassar-950 p-10 sm:p-16 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Butuh Bantuan atau Ingin Menyampaikan Pengaduan?</h2>
+          <p className="text-makassar-100 max-w-xl mx-auto mb-8">
+            Tim pelayanan Kelurahan Mamajang Luar siap membantu kebutuhan administrasi dan
+            menampung setiap saran serta pengaduan warga.
+          </p>
+          <Link
+            to="/kontak"
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-makassar-800 font-semibold hover:bg-makassar-50 transition-colors shadow-lg"
+          >
+            Sampaikan Pengaduan <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </section>
     </div>

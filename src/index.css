@@ -69,21 +69,6 @@ body {
   border-image: linear-gradient(135deg, #8B2342, #C8940E) 1;
 }
 
-/* Hero floating particles */
-.hero-particle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(200, 148, 14, 0.15);
-  animation: float 6s ease-in-out infinite;
-}
-.hero-particle:nth-child(2) {
-  animation-delay: 2s;
-  animation-duration: 8s;
-}
-.hero-particle:nth-child(3) {
-  animation-delay: 4s;
-  animation-duration: 10s;
-}
 
 /* Smooth accordion transition */
 .accordion-content {
@@ -135,4 +120,29 @@ body {
   outline: none;
   box-shadow: 0 0 0 3px rgba(139, 35, 66, 0.15);
   border-color: #ec6d90;
+}
+
+/* Continuous Running Text Marquee (Right to Left) */
+@keyframes marquee-continuous {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee-continuous 38s linear infinite;
+}
+
+@media (hover: hover) {
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
 }

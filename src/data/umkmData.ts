@@ -434,5 +434,8 @@ export const DATA_UMKM_MALUR: UmkmItem[] = [
   },
 ];
 
-export const OFFICIAL_UMKM_DATA = DATA_UMKM_MALUR;
+export const OFFICIAL_UMKM_DATA: UmkmItem[] = DATA_UMKM_MALUR.map((u) => ({
+  ...u,
+  status: (u.status || 'Disetujui') as 'Disetujui' | 'Menunggu' | 'Ditolak',
+}));
 

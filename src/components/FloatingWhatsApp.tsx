@@ -9,7 +9,7 @@ export default function FloatingWhatsApp() {
   const waUrl = `https://wa.me/${nomor}?text=${encodeURIComponent(pesanDefault)}`;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
+    <div className="fixed bottom-24 md:bottom-6 right-4 sm:right-6 z-40 flex flex-col items-end">
       {/* Popover Bubble */}
       {isOpen && (
         <div className="mb-3 w-72 sm:w-80 rounded-2xl bg-white p-4 shadow-2xl border border-stone-200 animate-slide-up text-stone-800">

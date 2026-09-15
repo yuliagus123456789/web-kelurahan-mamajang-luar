@@ -13,7 +13,6 @@ import {
   Layers,
   ChevronDown,
   UserCheck,
-  Sparkles,
   ExternalLink,
 } from 'lucide-react';
 
@@ -100,7 +99,7 @@ export default function StrukturOrganisasiChart({ onNavigateToRtRw }: StrukturOr
 
                 {/* Level Tag */}
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold-500/20 text-gold-300 text-[11px] font-bold tracking-wider uppercase mb-3 border border-gold-500/30">
-                  <Sparkles className="w-3 h-3 text-gold-400" />
+                  <Award className="w-3.5 h-3.5 text-gold-400" />
                   Pimpinan Kelurahan &bull; Tingkat I
                 </div>
 

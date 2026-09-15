@@ -29,6 +29,7 @@ export interface UmkmItem {
   contact: string | null;
   address: string | null;
   created_at: string;
+  status?: 'Disetujui' | 'Menunggu' | 'Ditolak';
 }
 
 export interface ComplaintItem {
@@ -40,6 +41,29 @@ export interface ComplaintItem {
   message: string;
   status: string;
   created_at: string;
+  category?: string | null;
+  impact_scope?: string | null;
+  ticket_number?: string | null;
+  image_url?: string | null;
+  admin_response?: string | null;
+  responded_at?: string | null;
+}
+
+export interface SawScoreDetails {
+  rawCategory: number;
+  rawImpact: number;
+  rawUrgency: number;
+  normCategory: number;
+  normImpact: number;
+  normUrgency: number;
+  finalScore: number;
+  priorityLevel: 'Tinggi' | 'Sedang' | 'Rendah';
+  matchedKeywords: string[];
+  rank: number;
+}
+
+export interface SawComplaintItem extends ComplaintItem {
+  saw: SawScoreDetails;
 }
 
 export interface ServiceItem {

@@ -29,18 +29,37 @@ export default function AnnouncementBar() {
   if (!visible || !text.trim()) return null;
 
   return (
-    <div className="bg-gradient-to-r from-makassar-900 via-makassar-800 to-makassar-900 text-gold-200 text-xs sm:text-sm py-2 px-4 border-b border-gold-500/20 shadow-inner relative z-50">
+    <div className="bg-gradient-to-r from-makassar-900 via-makassar-800 to-makassar-900 text-gold-200 text-xs sm:text-sm py-2 px-3 sm:px-4 border-b border-gold-500/20 shadow-inner relative z-50 overflow-hidden">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 overflow-hidden">
+        {/* Pinned Left Badge */}
+        <div className="flex items-center gap-2 shrink-0 z-10 pr-2 bg-gradient-to-r from-makassar-900 via-makassar-900 to-transparent">
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold-500/20 text-gold-400">
             <Megaphone className="h-3.5 w-3.5 animate-pulse" />
           </span>
-          <p className="font-medium text-white/95 truncate sm:whitespace-normal">
-            {text}
-          </p>
+          <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-gold-500/20 text-gold-300 font-bold text-[10px] uppercase tracking-wider">
+            Maklumat
+          </span>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Marquee Running Text (Right to Left) */}
+        <div
+          className="flex-1 overflow-hidden relative select-none"
+          title="Maklumat Pelayanan Kelurahan Mamajang Luar"
+        >
+          <div className="marquee-track flex items-center">
+            <div className="flex shrink-0 items-center whitespace-nowrap">
+              <span className="text-xs sm:text-sm font-medium text-white/95 px-4">{text}</span>
+              <span className="text-gold-400/90 font-bold px-3">★</span>
+            </div>
+            <div className="flex shrink-0 items-center whitespace-nowrap" aria-hidden="true">
+              <span className="text-xs sm:text-sm font-medium text-white/95 px-4">{text}</span>
+              <span className="text-gold-400/90 font-bold px-3">★</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pinned Right Controls */}
+        <div className="flex items-center gap-2.5 shrink-0 z-10 pl-2 bg-gradient-to-l from-makassar-900 via-makassar-900 to-transparent">
           <Link
             to="/layanan"
             className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold text-gold-300 hover:text-white transition-colors uppercase tracking-wider underline underline-offset-4"
