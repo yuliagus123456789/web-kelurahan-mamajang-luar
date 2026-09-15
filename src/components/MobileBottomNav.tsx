@@ -12,7 +12,7 @@ interface NavItem {
 const TABS: NavItem[] = [
   { id: 'home', label: 'Beranda', path: '/', icon: Home },
   { id: 'layanan', label: 'Layanan', path: '/layanan', icon: FileText },
-  { id: 'lapor', label: 'Lapor SPK', path: '/kontak', icon: Send },
+  { id: 'lapor', label: 'Pengaduan', path: '/kontak', icon: Send },
   { id: 'lacak', label: 'Lacak Tiket', path: '/kontak?tab=track', icon: Search },
 ];
 
@@ -100,21 +100,18 @@ export default function MobileBottomNav() {
               key={tab.id}
               type="button"
               onClick={() => handleTabClick(tab, idx)}
-              className={`flex-1 flex flex-col items-center justify-center min-h-[46px] py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer ${
-                isActive
+              className={`flex-1 flex flex-col items-center justify-center min-h-[46px] py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer ${isActive
                   ? 'bg-gradient-to-r from-makassar-800 to-makassar-900 text-white shadow-md shadow-makassar-900/30 scale-[1.03]'
                   : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100/80 active:scale-95'
-              }`}
+                }`}
             >
               <Icon
-                className={`w-4.5 h-4.5 transition-transform duration-200 ${
-                  isActive ? 'text-gold-300 scale-110' : 'text-stone-400'
-                }`}
+                className={`w-4.5 h-4.5 transition-transform duration-200 ${isActive ? 'text-gold-300 scale-110' : 'text-stone-400'
+                  }`}
               />
               <span
-                className={`text-[10px] tracking-tight leading-none mt-1 ${
-                  isActive ? 'font-bold text-white' : 'font-medium text-stone-600'
-                }`}
+                className={`text-[10px] tracking-tight leading-none mt-1 ${isActive ? 'font-bold text-white' : 'font-medium text-stone-600'
+                  }`}
               >
                 {tab.label}
               </span>
