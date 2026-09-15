@@ -234,27 +234,44 @@ export default function KontakPage() {
     setPhotoError(null);
   };
 
-  // Deteksi kategori dari URL (misal saat diklik dari Beranda: #/kontak?kategori=drainase)
+  // Deteksi kategori atau tab dari URL (misal saat diklik dari Beranda: #/kontak?kategori=drainase atau #/kontak?tab=track)
   useEffect(() => {
-    const raw = window.location.hash || path;
-    if (raw.includes('kategori=drainase')) {
-      setForm((prev) => ({ ...prev, category: 'Kebersihan & Drainase' }));
-      setActiveTab('create');
-    } else if (raw.includes('kategori=lampu')) {
-      setForm((prev) => ({ ...prev, category: 'Infrastruktur Vital' }));
-      setActiveTab('create');
-    } else if (raw.includes('kategori=keamanan')) {
-      setForm((prev) => ({ ...prev, category: 'Keamanan & Ketertiban' }));
-      setActiveTab('create');
-    } else if (raw.includes('kategori=kesehatan')) {
-      setForm((prev) => ({ ...prev, category: 'Kesehatan Lingkungan' }));
-      setActiveTab('create');
-    } else if (raw.includes('kategori=usulan')) {
-      setForm((prev) => ({ ...prev, category: 'Saran & Usulan Umum' }));
-      setActiveTab('create');
-    } else if (raw.includes('tab=track')) {
-      setActiveTab('track');
-    }
+    const checkUrl = () => {
+      const raw = window.location.hash || path;
+      if (raw.includes('kategori=drainase')) {
+        setForm((prev) => ({ ...prev, category: 'Kebersihan & Drainase' }));
+        setActiveTab('create');
+      } else if (raw.includes('kategori=lampu')) {
+        setForm((prev) => ({ ...prev, category: 'Infrastruktur Vital' }));
+        setActiveTab('create');
+      } else if (raw.includes('kategori=keamanan')) {
+        setForm((prev) => ({ ...prev, category: 'Keamanan & Ketertiban' }));
+        setActiveTab('create');
+      } else if (raw.includes('kategori=kesehatan')) {
+        setForm((prev) => ({ ...prev, category: 'Kesehatan Lingkungan' }));
+        setActiveTab('create');
+      } else if (raw.includes('kategori=usulan')) {
+        setForm((prev) => ({ ...prev, category: 'Saran & Usulan Umum' }));
+        setActiveTab('create');
+      } else if (raw.includes('tab=track') || raw.includes('#track') || raw.includes('track')) {
+        setActiveTab('track');
+      }
+    };
+
+    checkUrl();
+
+    const onSwitchTrack = () => setActiveTab('track');
+    const onSwitchCreate = () => setActiveTab('create');
+
+    window.addEventListener('switch-to-track', onSwitchTrack);
+    window.addEventListener('switch-to-create', onSwitchCreate);
+    window.addEventListener('hashchange', checkUrl);
+
+    return () => {
+      window.removeEventListener('switch-to-track', onSwitchTrack);
+      window.removeEventListener('switch-to-create', onSwitchCreate);
+      window.removeEventListener('hashchange', checkUrl);
+    };
   }, [path]);
 
   // Success Ticket State

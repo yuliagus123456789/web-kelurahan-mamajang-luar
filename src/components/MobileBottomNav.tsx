@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useRouter } from '@/lib/router';
+import { useRouter } from '@/lib/router';
 import { Home, FileText, Send, Search } from 'lucide-react';
 
 interface NavItem {
@@ -13,20 +13,21 @@ const TABS: NavItem[] = [
   { id: 'home', label: 'Beranda', path: '/', icon: Home },
   { id: 'layanan', label: 'Layanan', path: '/layanan', icon: FileText },
   { id: 'lapor', label: 'Lapor SPK', path: '/kontak', icon: Send },
-  { id: 'lacak', label: 'Lacak Tiket', path: '/kontak', icon: Search },
+  { id: 'lacak', label: 'Lacak Tiket', path: '/kontak?tab=track', icon: Search },
 ];
 
 export default function MobileBottomNav() {
-  const { path } = useRouter();
+  const { path, navigate } = useRouter();
   const [activeTab, setActiveTab] = useState<number>(0);
 
   useEffect(() => {
+    const raw = window.location.hash || path;
     if (path === '/') {
       setActiveTab(0);
     } else if (path === '/layanan') {
       setActiveTab(1);
-    } else if (path === '/kontak') {
-      if (window.location.hash === '#track') {
+    } else if (path.startsWith('/kontak')) {
+      if (raw.includes('tab=track') || raw.includes('track')) {
         setActiveTab(3);
       } else {
         setActiveTab(2);
@@ -36,15 +37,51 @@ export default function MobileBottomNav() {
     }
   }, [path]);
 
-  const handleTabClick = (index: number, tab: NavItem) => {
-    setActiveTab(index);
+  const handleTabClick = (tab: NavItem, idx: number) => {
+    setActiveTab(idx);
 
-    if (path === '/' && tab.id === 'lacak') {
-      const trackerEl = document.getElementById('spk-tracker-section');
-      if (trackerEl) {
-        trackerEl.scrollIntoView({ behavior: 'smooth' });
+    if (tab.id === 'lacak') {
+      if (path === '/') {
+        // Jika sedang di Beranda, scroll langsung ke komponen Lacak SPK
+        const trackerEl = document.getElementById('spk-tracker-section');
+        if (trackerEl) {
+          trackerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
       }
+
+      if (path.startsWith('/kontak')) {
+        // Jika sudah di halaman kontak, ubah tab aktif menjadi pelacakan
+        window.dispatchEvent(new Event('switch-to-track'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      // Jika dari halaman lain, arahkan ke /kontak?tab=track
+      navigate('/kontak?tab=track');
+      return;
     }
+
+    if (tab.id === 'lapor') {
+      if (path.startsWith('/kontak')) {
+        window.dispatchEvent(new Event('switch-to-create'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      navigate('/kontak');
+      return;
+    }
+
+    if (tab.id === 'home') {
+      if (path === '/') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      navigate('/');
+      return;
+    }
+
+    navigate(tab.path);
   };
 
   return (
@@ -59,11 +96,11 @@ export default function MobileBottomNav() {
           const Icon = tab.icon;
 
           return (
-            <Link
+            <button
               key={tab.id}
-              to={tab.path}
-              onClick={() => handleTabClick(idx, tab)}
-              className={`flex-1 flex flex-col items-center justify-center min-h-[46px] py-1.5 px-2 rounded-full transition-all duration-200 ${
+              type="button"
+              onClick={() => handleTabClick(tab, idx)}
+              className={`flex-1 flex flex-col items-center justify-center min-h-[46px] py-1.5 px-2 rounded-full transition-all duration-200 cursor-pointer ${
                 isActive
                   ? 'bg-gradient-to-r from-makassar-800 to-makassar-900 text-white shadow-md shadow-makassar-900/30 scale-[1.03]'
                   : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100/80 active:scale-95'
@@ -81,7 +118,7 @@ export default function MobileBottomNav() {
               >
                 {tab.label}
               </span>
-            </Link>
+            </button>
           );
         })}
       </div>

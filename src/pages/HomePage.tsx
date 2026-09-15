@@ -119,13 +119,19 @@ export default function HomePage() {
                 <span>Laporkan Pengaduan</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
-              <a
-                href="#spk-tracker-section"
-                className="px-5 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold hover:bg-white/20 transition-colors inline-flex items-center gap-2 text-sm"
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('spk-tracker-section');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className="px-5 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold hover:bg-white/20 transition-colors inline-flex items-center gap-2 text-sm cursor-pointer"
               >
                 <Search className="w-4 h-4 text-gold-300" />
                 <span>Lacak Tiket Aduan</span>
-              </a>
+              </button>
               <Link
                 to="/layanan"
                 className="px-4 py-3 rounded-xl text-stone-300 hover:text-white font-medium text-xs sm:text-sm underline-offset-4 hover:underline inline-flex items-center gap-1.5 transition-colors"
