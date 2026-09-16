@@ -41,7 +41,7 @@ export default function OfflineIndicator() {
           </div>
 
           <a
-            href={`tel:${KELURAHAN_CONFIG.whatsappPelayanan.nomorApi}`}
+            href={`tel:${KELURAHAN_CONFIG.whatsappPelayanan.nomor}`}
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-makassar-800 hover:bg-makassar-700 text-white text-[11px] font-bold shrink-0 transition-colors shadow"
           >
             <PhoneCall className="w-3 h-3 text-gold-300" />

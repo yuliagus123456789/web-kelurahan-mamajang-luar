@@ -205,17 +205,22 @@ export default function AdminPage() {
   const fetchAllData = async () => {
     setIsLoadingData(true);
     try {
-      const [nRes, gRes, uRes, cRes] = await Promise.all([
+      const [nRes, gRes, uRes, cRes] = await Promise.allSettled([
         supabase.from('news').select('*').order('published_at', { ascending: false }),
         supabase.from('gallery').select('*').order('event_date', { ascending: false }),
         supabase.from('umkm').select('*').order('created_at', { ascending: false }),
         supabase.from('complaints').select('*').order('created_at', { ascending: false }),
       ]);
 
-      if (nRes.data && nRes.data.length > 0) setNewsList(nRes.data);
+      const nData = nRes.status === 'fulfilled' ? nRes.value.data : null;
+      const gData = gRes.status === 'fulfilled' ? gRes.value.data : null;
+      const uData = uRes.status === 'fulfilled' ? uRes.value.data : null;
+      const cData = cRes.status === 'fulfilled' ? cRes.value.data : null;
+
+      if (nData && nData.length > 0) setNewsList(nData);
       else setNewsList(OFFICIAL_NEWS_DATA);
 
-      if (gRes.data && gRes.data.length > 0) setGalleryList(gRes.data);
+      if (gData && gData.length > 0) setGalleryList(gData);
       else setGalleryList(OFFICIAL_GALLERY_DATA);
 
       // UMKM (Supabase + Pendaftaran Mandiri Warga)
@@ -226,8 +231,8 @@ export default function AdminPage() {
         // ignore
       }
       const rawUmkmPool: UmkmItem[] = [
-        ...(uRes.data || []),
         ...localUmkm,
+        ...(uData || []),
         ...OFFICIAL_UMKM_DATA,
       ];
       const umkmMap = new Map<string, UmkmItem>();
@@ -241,7 +246,7 @@ export default function AdminPage() {
       }
       setUmkmList(Array.from(umkmMap.values()));
 
-      // Pengaduan & Aspirasi Warga
+      // Pengaduan & Aspirasi Warga (Prioritaskan pengaduan lokal baru)
       let localComplaints: ComplaintItem[] = [];
       try {
         localComplaints = JSON.parse(localStorage.getItem('mamajang_local_complaints') || '[]');
@@ -250,19 +255,20 @@ export default function AdminPage() {
       }
 
       const rawPool: ComplaintItem[] = [
-        ...(cRes.data || []),
         ...localComplaints,
+        ...(cData || []),
         ...INITIAL_SAMPLE_COMPLAINTS,
       ];
       const complaintMap = new Map<string, ComplaintItem>();
       for (const item of rawPool) {
-        if (!complaintMap.has(item.id)) {
-          complaintMap.set(item.id, item);
+        const key = item.ticket_number || item.id;
+        if (!complaintMap.has(key)) {
+          complaintMap.set(key, item);
         }
       }
       setComplaintList(Array.from(complaintMap.values()));
     } catch (err) {
-      console.warn('Gagal memuat data dari Supabase, menggunakan arsip data resmi:', err);
+      console.warn('Gagal memuat data dari Supabase, menggunakan arsip data resmi dan data lokal:', err);
       setNewsList(OFFICIAL_NEWS_DATA);
       setGalleryList(OFFICIAL_GALLERY_DATA);
       let localUmkm: UmkmItem[] = [];
@@ -282,7 +288,25 @@ export default function AdminPage() {
         }
       }
       setUmkmList(Array.from(umkmMap.values()));
-      setComplaintList(INITIAL_SAMPLE_COMPLAINTS);
+
+      let localComplaints: ComplaintItem[] = [];
+      try {
+        localComplaints = JSON.parse(localStorage.getItem('mamajang_local_complaints') || '[]');
+      } catch {
+        // ignore
+      }
+      const rawPool: ComplaintItem[] = [
+        ...localComplaints,
+        ...INITIAL_SAMPLE_COMPLAINTS,
+      ];
+      const complaintMap = new Map<string, ComplaintItem>();
+      for (const item of rawPool) {
+        const key = item.ticket_number || item.id;
+        if (!complaintMap.has(key)) {
+          complaintMap.set(key, item);
+        }
+      }
+      setComplaintList(Array.from(complaintMap.values()));
     } finally {
       setIsLoadingData(false);
     }
@@ -698,15 +722,28 @@ export default function AdminPage() {
 
   // ===== COMPLAINTS (PENGADUAN) =====
   const handleUpdateComplaintStatus = async (id: string, newStatus: string) => {
+    // 1. Selalu perbarui state UI secara instan
+    setComplaintList((prev) => prev.map((c) => (c.id === id ? { ...c, status: newStatus } : c)));
+
+    // 2. Simpan ke local storage
     try {
-      const { error } = await supabase.from('complaints').update({ status: newStatus }).eq('id', id);
-      if (error) throw error;
-      setComplaintList((prev) => prev.map((c) => (c.id === id ? { ...c, status: newStatus } : c)));
-      showNotification(`Status pengaduan diubah menjadi: ${newStatus}`);
-    } catch (err: unknown) {
-      const error = err as Error;
-      showNotification(`Gagal mengubah status: ${error.message}`, 'error');
+      const localCached: ComplaintItem[] = JSON.parse(
+        localStorage.getItem('mamajang_local_complaints') || '[]'
+      );
+      const updated = localCached.map((c) => (c.id === id ? { ...c, status: newStatus } : c));
+      localStorage.setItem('mamajang_local_complaints', JSON.stringify(updated));
+    } catch {
+      // ignore
     }
+
+    // 3. Sinkronkan ke Supabase jika terhubung
+    try {
+      await supabase.from('complaints').update({ status: newStatus }).eq('id', id);
+    } catch (err) {
+      console.warn('Supabase offline, perubahan status tersimpan di penyimpanan lokal:', err);
+    }
+
+    showNotification(`Status pengaduan diubah menjadi: ${newStatus}`);
   };
 
   const handleOpenResponseModal = (item: SawComplaintItem) => {
@@ -866,9 +903,21 @@ export default function AdminPage() {
         setUmkmList((prev) => prev.filter((u) => u.id !== targetId));
         showNotification('Data UMKM berhasil dihapus');
       } else if (targetType === 'complaint') {
-        const { error } = await supabase.from('complaints').delete().eq('id', targetId);
-        if (error) throw error;
         setComplaintList((prev) => prev.filter((c) => c.id !== targetId));
+        try {
+          const localCached: ComplaintItem[] = JSON.parse(
+            localStorage.getItem('mamajang_local_complaints') || '[]'
+          );
+          const updated = localCached.filter((c) => c.id !== targetId);
+          localStorage.setItem('mamajang_local_complaints', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        try {
+          await supabase.from('complaints').delete().eq('id', targetId);
+        } catch (err) {
+          console.warn('Supabase offline, data terhapus dari penyimpanan lokal:', err);
+        }
         showNotification('Laporan pengaduan berhasil dihapus');
       }
     } catch (err: unknown) {

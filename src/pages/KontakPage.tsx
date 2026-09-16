@@ -329,33 +329,7 @@ export default function KontakPage() {
       responded_at: null,
     };
 
-    // 1. Coba simpan ke Supabase dengan kolom lengkap (termasuk foto bukti)
-    const { error: insertError } = await supabase.from('complaints').insert({
-      ticket_number: ticketNumber,
-      name: form.name,
-      email: form.email || null,
-      phone: form.phone || null,
-      category: finalCategory,
-      impact_scope: form.impact_scope,
-      subject: form.subject,
-      message: form.message,
-      image_url: photoPreview || null,
-      status: 'Baru',
-    });
-
-    if (insertError) {
-      // 2. Fallback jika kolom ticket_number/image_url belum dibuat di skema Supabase
-      await supabase.from('complaints').insert({
-        name: form.name,
-        email: form.email || null,
-        phone: form.phone || null,
-        subject: form.subject,
-        message: `${taggedMessage}${photoPreview ? ' [Ada Bukti Foto]' : ''}`,
-        status: 'Baru',
-      });
-    }
-
-    // 3. Simpan di cache lokal peramban agar instan bisa dilacak
+    // 1. Simpan di cache lokal peramban terlebih dahulu agar dijamin tersimpan walau offline/tanpa Supabase
     try {
       const existing: ComplaintItem[] = JSON.parse(
         localStorage.getItem('mamajang_local_complaints') || '[]'
@@ -363,6 +337,36 @@ export default function KontakPage() {
       localStorage.setItem('mamajang_local_complaints', JSON.stringify([localItem, ...existing]));
     } catch {
       // ignore storage error
+    }
+
+    // 2. Coba sinkronkan ke Supabase jika server tersedia
+    try {
+      const { error: insertError } = await supabase.from('complaints').insert({
+        ticket_number: ticketNumber,
+        name: form.name,
+        email: form.email || null,
+        phone: form.phone || null,
+        category: finalCategory,
+        impact_scope: form.impact_scope,
+        subject: form.subject,
+        message: form.message,
+        image_url: photoPreview || null,
+        status: 'Baru',
+      });
+
+      if (insertError) {
+        // Fallback jika kolom ticket_number/image_url belum dibuat di skema Supabase
+        await supabase.from('complaints').insert({
+          name: form.name,
+          email: form.email || null,
+          phone: form.phone || null,
+          subject: form.subject,
+          message: `${taggedMessage}${photoPreview ? ' [Ada Bukti Foto]' : ''}`,
+          status: 'Baru',
+        });
+      }
+    } catch (sbErr) {
+      console.warn('Supabase offline / tidak terhubung, laporan tetap aman di penyimpanan lokal:', sbErr);
     }
 
     setSubmitting(false);

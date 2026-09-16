@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Presentasi Website Kelurahan Mamajang Luar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --makassar: #8B2342;
+      --makassar-dark: #5C1329;
+      --makassar-light: #FDF2F4;
+      --gold: #C8940E;
+      --gold-light: #FFF9E6;
+      --stone-900: #1C1917;
+      --stone-800: #292524;
+      --stone-600: #57534E;
+      --stone-100: #F5F5F4;
+      --stone-50: #FAFAF9;
+      --white: #FFFFFF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: #0F090B;
+      color: var(--stone-900);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Top Navigation Bar */
+    header.deck-bar {
+      height: 52px;
+      background: rgba(26, 11, 16, 0.95);
+      border-bottom: 1px solid rgba(200, 148, 14, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      color: #FFF;
+      z-index: 100;
+    }
+
+    .deck-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #F5E6C8;
+    }
+
+    .badge-pill {
+      background: rgba(200, 148, 14, 0.2);
+      border: 1px solid rgba(200, 148, 14, 0.4);
+      color: #F3C966;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .deck-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-ctrl {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #FFF;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-ctrl:hover {
+      background: var(--makassar);
+      border-color: var(--gold);
+    }
+
+    .btn-ctrl.active {
+      background: var(--gold);
+      color: var(--stone-900);
+      font-weight: 800;
+      border-color: #FFF;
+    }
+
+    /* Progress Indicator */
+    .progress-track {
+      position: absolute;
+      top: 51px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      z-index: 101;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--makassar), var(--gold));
+      width: 10%;
+      transition: width 0.3s ease;
+    }
+
+    /* Main Deck Stage */
+    main.stage {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: radial-gradient(circle at center, #240C14 0%, #0F0508 100%);
+    }
+
+    /* Slide Card */
+    .slide-card {
+      width: 100%;
+      max-width: 1280px;
+      aspect-ratio: 16 / 9;
+      background: var(--white);
+      border-radius: 20px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      animation: fadeIn 0.35s ease;
+      position: relative;
+    }
+
+    .slide-card.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.985); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Slide Layouts */
+    .slide-header {
+      padding: 28px 36px 16px 36px;
+      border-bottom: 1px solid var(--stone-100);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .slide-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--makassar), var(--gold));
+    }
+
+    .slide-tag {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--makassar);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .slide-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--stone-900);
+      line-height: 1.25;
+    }
+
+    .slide-number {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--gold);
+      background: var(--gold-light);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(200, 148, 14, 0.3);
+    }
+
+    .slide-body {
+      flex: 1;
+      padding: 24px 36px;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 28px;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .slide-body.full-content {
+      grid-template-columns: 1fr;
+    }
+
+    /* Content Typography & Cards */
+    .content-box {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .lead-text {
+      font-size: 15px;
+      color: var(--stone-600);
+      line-height: 1.5;
+    }
+
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--stone-50);
+      border: 1px solid var(--stone-100);
+      padding: 12px 16px;
+      border-radius: 12px;
+    }
+
+    .feature-icon {
+      font-size: 18px;
+      line-height: 1;
+      margin-top: 2px;
+    }
+
+    .feature-text h4 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--stone-900);
+      margin-bottom: 2px;
+    }
+
+    .feature-text p {
+      font-size: 12px;
+      color: var(--stone-600);
+      line-height: 1.45;
+    }
+
+    /* Interactive Screenshot Frame / Dropzone */
+    .screenshot-frame {
+      width: 100%;
+      height: 100%;
+      max-height: 420px;
+      background: #F2EEED;
+      border: 2px dashed #D6CBC9;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .screenshot-frame:hover {
+      border-color: var(--makassar);
+      background: var(--makassar-light);
+    }
+
+    .screenshot-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .screenshot-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+      color: var(--stone-600);
+      pointer-events: none;
+    }
+
+    .screenshot-placeholder .icon-camera {
+      font-size: 32px;
+    }
+
+    .screenshot-placeholder h5 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--stone-900);
+    }
+
+    .screenshot-placeholder p {
+      font-size: 11.5px;
+      max-width: 240px;
+      line-height: 1.4;
+      color: var(--stone-600);
+    }
+
+    .screenshot-placeholder .shortcut-tip {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--makassar);
+      background: rgba(139, 35, 66, 0.1);
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-top: 4px;
+    }
+
+    .btn-clear-img {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .screenshot-frame.has-image .btn-clear-img {
+      display: flex;
+    }
+
+    .screenshot-frame.has-image .screenshot-placeholder {
+      display: none;
+    }
+
+    /* Cover Slide Specific */
+    .cover-slide {
+      background: linear-gradient(135deg, #1A0910 0%, #3D0F1F 50%, #15060C 100%);
+      color: #FFF;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 48px;
+      position: relative;
+    }
+
+    .cover-slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(200, 148, 14, 0.2), transparent 60%);
+      pointer-events: none;
+    }
+
+    .cover-logo {
+      width: 72px;
+      height: 90px;
+      object-fit: contain;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
+    }
+
+    .cover-tag {
+      background: rgba(200, 148, 14, 0.2);
+      color: var(--gold);
+      border: 1px solid rgba(200, 148, 14, 0.4);
+      padding: 6px 18px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .cover-title {
+      font-size: 34px;
+      font-weight: 800;
+      color: #FFFFFF;
+      line-height: 1.2;
+      max-width: 860px;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .cover-subtitle {
+      font-size: 16px;
+      color: #F0D5DA;
+      max-width: 740px;
+      line-height: 1.5;
+      margin-bottom: 36px;
+    }
+
+    .cover-footer {
+      display: flex;
+      gap: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #F3C966;
+      border-top: 1px solid rgba(255,255,255,0.15);
+      padding-top: 20px;
+    }
+
+    /* Speaker Notes Bar (Bottom Drawer) */
+    .speaker-notes-bar {
+      background: rgba(18, 18, 20, 0.98);
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 14px 28px;
+      color: #E7E5E4;
+      font-size: 13px;
+      line-height: 1.5;
+      display: none;
+      align-items: flex-start;
+      gap: 16px;
+      max-height: 140px;
+      overflow-y: auto;
+      z-index: 90;
+    }
+
+    .speaker-notes-bar.open {
+      display: flex;
+    }
+
+    .speaker-notes-tag {
+      background: var(--makassar);
+      color: #FFF;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 6px;
+      shrink: 0;
+    }
+
+    /* Bottom Status Info */
+    footer.status-bar {
+      height: 38px;
+      background: #0A0507;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 11.5px;
+      color: #8C8285;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .key-hints {
+      display: flex;
+      gap: 14px;
+    }
+
+    .key-hints kbd {
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFF;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+
+    /* Print / PDF Mode */
+    @media print {
+      body {
+        background: transparent;
+        overflow: visible;
+        width: 100%;
+        height: auto;
+      }
+      header.deck-bar, .progress-track, .speaker-notes-bar, footer.status-bar, .btn-ctrl, .btn-clear-img {
+        display: none !important;
+      }
+      main.stage {
+        padding: 0;
+        background: transparent;
+        display: block;
+      }
+      .slide-card {
+        display: flex !important;
+        page-break-after: always;
+        border-radius: 0;
+        box-shadow: none;
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Deck Control Header -->
+  <header class="deck-bar">
+    <div class="deck-title">
+      <span>🏛️ Kelurahan Mamajang Luar</span>
+      <span class="badge-pill">PRESENTASI RESMI</span>
+    </div>
+
+    <div class="deck-controls">
+      <button class="btn-ctrl" onclick="prevSlide()" title="Panah Kiri">◀ Sebelumnya</button>
+      <span id="slideCounter" style="font-size: 12px; font-weight: 800; color: var(--gold); padding: 0 8px;">1 / 10</span>
+      <button class="btn-ctrl" onclick="nextSlide()" title="Panah Kanan / Spasi">Berikutnya ▶</button>
+      <button class="btn-ctrl" id="btnNotes" onclick="toggleNotes()">🎙️ Skrip Pembicara (N)</button>
+      <button class="btn-ctrl" onclick="toggleFullScreen()">⛶ Layar Penuh (F)</button>
+      <button class="btn-ctrl" onclick="window.print()" title="Cetak atau Simpan PDF">🖨️ Cetak / PDF</button>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <div class="progress-track">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <!-- Main Slide Stage -->
+  <main class="stage">
+
+    <!-- SLIDE 1: COVER -->
+    <section class="slide-card cover-slide active" data-title="Judul & Pembuka">
+      <img src="/images/logo-pemkot-makassar.png" alt="Logo Pemkot Makassar" class="cover-logo" onerror="this.style.display='none'" />
+      <div class="cover-tag">Sistem Informasi & Pelayanan Publik Resmi</div>
+      <h1 class="cover-title">Transformasi Digital Pelayanan Warga & Pemberdayaan UMKM Kelurahan Mamajang Luar</h1>
+      <p class="cover-subtitle">Integrasi Penanganan Pengaduan Cerdas (SPK Metode Simple Additive Weighting), Direktori Mandiri UMKM Lorong, dan Arsitektur Modern PWA</p>
+      <div class="cover-footer">
+        <span>📍 Pemerintah Kelurahan Mamajang Luar</span>
+        <span>•</span>
+        <span>🛡️ 100% Layanan Bebas Pungli</span>
+        <span>•</span>
+        <span>Kota Makassar, 2026</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: LATAR BELAKANG & TANTANGAN -->
+    <section class="slide-card" data-title="Latar Belakang & Masalah">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>⚠️</span> Analisis Kondisi Lapangan</div>
+          <h2 class="slide-title">Tantangan Pelayanan Warga di Kelurahan</h2>
+        </div>
+        <div class="slide-number">Slide 02</div>
+      </div>
+      <div class="slide-body">
+        <div class="content-box">
+          <p class="lead-text">Kelurahan Mamajang Luar memiliki 16 RT dengan dinamika sosial padat yang menghadapi 3 tantangan utama:</p>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">📥</span>
+              <div class="feature-text">
+                <h4>Penumpukan Pengaduan Tanpa Urgensi Terukur</h4>
+                <p>Keluhan drainase buntu, sampah, dan ketertiban masuk bersamaan tanpa algoritma pemilah prioritas mana yang darurat.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">🏪</span>
+              <div class="feature-text">
+                <h4>Potensi UMKM Lorong Belum Terkoneksi Luas</h4>
+                <p>Puluhan usaha kuliner dan kerajinan khas Makassar belum memiliki katalog digital terpusat yang terpercaya.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">⏳</span>
+              <div class="feature-text">
+                <h4>Birokrasi Konvensional Membuang Waktu</h4>
+                <p>Warga sering harus bolak-balik ke kantor kelurahan hanya untuk mengecek syarat berkas surat administrasi.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="screenshot-frame" onclick="triggerUpload(2)" id="frame-2">
+          <button class="btn-clear-img" onclick="clearImage(event, 2)">✕</button>
+          <div class="screenshot-placeholder">
+            <span class="icon-camera">📷</span>
+            <h5>Screenshot Beranda / Masalah Warga</h5>
+            <p>Klik di sini untuk upload foto atau tekan <strong>Ctrl + V</strong> untuk paste screenshot.</p>
+            <span class="shortcut-tip">Slot Screenshot #2</span>
+          </div>
+          <img id="img-2" style="display:none;" />
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: SOLUSI TERPADU -->
+    <section class="slide-card" data-title="Solusi yang Dibangun">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>💡</span> Kerangka Solusi</div>
+          <h2 class="slide-title">Platform Layanan Terpadu Warga & Staf</h2>
+        </div>
+        <div class="slide-number">Slide 03</div>
+      </div>
+      <div class="slide-body">
+        <div class="content-box">
+          <p class="lead-text">Solusi komprehensif yang dirancang untuk kebutuhan warga dan aparatur kelurahan secara seimbang:</p>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">⚖️</span>
+              <div class="feature-text">
+                <h4>SPK Prioritas Pengaduan (Metode SAW)</h4>
+                <p>Menghitung skor normalisasi 4 kriteria pengaduan secara instan dan matematis untuk penanganan adil.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">📱</span>
+              <div class="feature-text">
+                <h4>PWA & Mobile-First Experience</h4>
+                <p>Dapat di-install ke layar utama HP Android/iOS, navigasi kapsul modern, dan didukung smart offline cache.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">💬</span>
+              <div class="feature-text">
+                <h4>Generator Notifikasi WhatsApp Resmi</h4>
+                <p>Memungkinkan staf mengirimkan kabar berkas selesai ke pemohon dalam 1 klik tanpa salah format.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="screenshot-frame" onclick="triggerUpload(3)" id="frame-3">
+          <button class="btn-clear-img" onclick="clearImage(event, 3)">✕</button>
+          <div class="screenshot-placeholder">
+            <span class="icon-camera">📷</span>
+            <h5>Screenshot Beranda Lengkap</h5>
+            <p>Tampilkan bagian Header & Hero Maklumat Bebas Pungli.</p>
+            <span class="shortcut-tip">Slot Screenshot #3 (Ctrl + V)</span>
+          </div>
+          <img id="img-3" style="display:none;" />
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: INOVASI METODE SAW -->
+    <section class="slide-card" data-title="SPK Prioritas SAW">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>🧠</span> Algoritma Cerdas</div>
+          <h2 class="slide-title">SPK Prioritas Aduan: Simple Additive Weighting</h2>
+        </div>
+        <div class="slide-number">Slide 04</div>
+      </div>
+      <div class="slide-body">
+        <div class="content-box">
+          <p class="lead-text">Sistem menghitung nilai preferensi (V) secara otomatis dari 4 kriteria pembobotan:</p>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">🌐</span>
+              <div class="feature-text">
+                <h4>C1: Cakupan Dampak Masalah (Bobot 30%)</h4>
+                <p>Rumah Pribadi (0.3) | Lingkungan RT/Lorong (0.6) | Skala Kelurahan/Fasum (1.0).</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">⚡</span>
+              <div class="feature-text">
+                <h4>C2: Kategori Urgensi Lapangan (Bobot 25%)</h4>
+                <p>Kebersihan & Drainase (0.9) | Infrastruktur Vital (0.85) | Keamanan (0.8).</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">🔍</span>
+              <div class="feature-text">
+                <h4>C3: Deteksi Kata Kunci Kritis (Bobot 25%)</h4>
+                <p>Pemindaian otomatis kata <em>banjir, ambruk, kebakaran, bau busuk, tersumbat</em>.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">⏱️</span>
+              <div class="feature-text">
+                <h4>C4: Waktu Tunggu Laporan (Bobot 20%)</h4>
+                <p>Eskalasi prioritas otomatis bagi aduan yang belum sempat diselesaikan staf.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="screenshot-frame" onclick="triggerUpload(4)" id="frame-4">
+          <button class="btn-clear-img" onclick="clearImage(event, 4)">✕</button>
+          <div class="screenshot-placeholder">
+            <span class="icon-camera">📷</span>
+            <h5>Screenshot Modul SPK SAW</h5>
+            <p>Screenshot kartu skor SAW, badge prioritas, atau tiket pengaduan.</p>
+            <span class="shortcut-tip">Slot Screenshot #4 (Ctrl + V)</span>
+          </div>
+          <img id="img-4" style="display:none;" />
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: PENGADUAN & PELACAKAN WARGA -->
+    <section class="slide-card" data-title="Pelacakan Pengaduan">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>🔍</span> Transparansi Publik</div>
+          <h2 class="slide-title">Formulir Aduan Foto & Lacak Status Tiket</h2>
+        </div>
+        <div class="slide-number">Slide 05</div>
+      </div>
+      <div class="slide-body">
+        <div class="content-box">
+          <p class="lead-text">Warga mendapatkan kepastian proses melalui nomor tiket unik:</p>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">📸</span>
+              <div class="feature-text">
+                <h4>Unggah Bukti Foto Terkompresi Otomatis</h4>
+                <p>Warga dapat melampirkan foto kondisi riil di lorong yang otomatis dikompresi agar hemat kuota.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">🎟️</span>
+              <div class="feature-text">
+                <h4>Penerbitan Nomor Tiket Resmi</h4>
+                <p>Format tiket unik (contoh: MLR-26-4819) langsung dapat dilacak status dan tindak lanjutnya.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">📱</span>
+              <div class="feature-text">
+                <h4>Dukungan Navigasi Mobile Responsif</h4>
+                <p>Tombol Lacak Tiket di dock bawah ponsel langsung membuka tab pencarian tanpa kendala.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="screenshot-frame" onclick="triggerUpload(5)" id="frame-5">
+          <button class="btn-clear-img" onclick="clearImage(event, 5)">✕</button>
+          <div class="screenshot-placeholder">
+            <span class="icon-camera">📷</span>
+            <h5>Screenshot Form Aduan & Bukti Foto</h5>
+            <p>Screenshot halaman #/kontak (tab form pengaduan atau lacak tiket).</p>
+            <span class="shortcut-tip">Slot Screenshot #5 (Ctrl + V)</span>
+          </div>
+          <img id="img-4" style="display:none;" />
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: PENDAFTARAN & MODERASI UMKM -->
+    <section class="slide-card" data-title="Direktori Mandiri UMKM">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>🏪</span> Ekonomi Kerakyatan</div>
+          <h2 class="slide-title">Pemberdayaan UMKM: Pendaftaran & Moderasi</h2>
+        </div>
+        <div class="slide-number">Slide 06</div>
+      </div>
+      <div class="slide-body">
+        <div class="content-box">
+          <p class="lead-text">Fasilitas promosi gratis untuk 36+ usaha mikro binaan kelurahan di lorong-lorong:</p>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">📝</span>
+              <div class="feature-text">
+                <h4>Pendaftaran Mandiri Warga (Self-Registration)</h4>
+                <p>Pelaku UMKM cukup mengisi formulir nama usaha, WhatsApp, alamat lorong, dan foto gerai.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">🛡️</span>
+              <div class="feature-text">
+                <h4>Moderasi 2 Langkah Anti-Spam</h4>
+                <p>Status awal berstatus <em>Menunggu</em>. Hanya usaha yang disetujui staf yang tampil di website publik.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">💬</span>
+              <div class="feature-text">
+                <h4>Order Langsung WhatsApp Tanpa Potongan</h4>
+                <p>Warga dan konsumen luar dapat langsung bertransaksi tanpa potongan komisi aplikasi.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="screenshot-frame" onclick="triggerUpload(6)" id="frame-6">
+          <button class="btn-clear-img" onclick="clearImage(event, 6)">✕</button>
+          <div class="screenshot-placeholder">
+            <span class="icon-camera">📷</span>
+            <h5>Screenshot Modal Daftar UMKM / Kartu Usaha</h5>
+            <p>Screenshot modal "Daftarkan Usaha Anda (Gratis)" di halaman #/umkm.</p>
+            <span class="shortcut-tip">Slot Screenshot #6 (Ctrl + V)</span>
+          </div>
+          <img id="img-6" style="display:none;" />
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: DASHBOARD STAF (ADMIN CMS) -->
+    <section class="slide-card" data-title="Dashboard CMS Staf">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>💻</span> Pusat Kendali</div>
+          <h2 class="slide-title">Pusat Kendali & CMS Konten Staf Kelurahan</h2>
+        </div>
+        <div class="slide-number">Slide 07</div>
+      </div>
+      <div class="slide-body">
+        <div class="content-box">
+          <p class="lead-text">Dashboard terpadu yang dirancang untuk efisiensi harian aparatur kantor lurah:</p>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">📥</span>
+              <div class="feature-text">
+                <h4>Tab Pengaduan Warga Dibuka Otomatis</h4>
+                <p>Aduan warga menjadi section nomor 1 paling kiri yang langsung aktif saat staf login.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">✅</span>
+              <div class="feature-text">
+                <h4>1-Click Approval Moderasi UMKM</h4>
+                <p>Notifikasi badge kuning dan tombol hijau <em>Setujui</em> untuk memvalidasi usaha warga.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">📢</span>
+              <div class="feature-text">
+                <h4>Pengumuman Darurat Berjalan (Running Text)</h4>
+                <p>Staf dapat mengubah teks maklumat banner darurat di beranda secara instan.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="screenshot-frame" onclick="triggerUpload(7)" id="frame-7">
+          <button class="btn-clear-img" onclick="clearImage(event, 7)">✕</button>
+          <div class="screenshot-placeholder">
+            <span class="icon-camera">📷</span>
+            <h5>Screenshot Dashboard Admin (#/admin)</h5>
+            <p>Screenshot tab Pengaduan Warga atau Tabel Moderasi UMKM di Admin.</p>
+            <span class="shortcut-tip">Slot Screenshot #7 (Ctrl + V)</span>
+          </div>
+          <img id="img-7" style="display:none;" />
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: TEKNOLOGI & IDENTITAS MAKASSAR -->
+    <section class="slide-card" data-title="Arsitektur & Desain">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>⚙️</span> Standar Rekayasa</div>
+          <h2 class="slide-title">Arsitektur Perangkat Lunak & Identitas Lokal</h2>
+        </div>
+        <div class="slide-number">Slide 08</div>
+      </div>
+      <div class="slide-body">
+        <div class="content-box">
+          <p class="lead-text">Fondasi kode yang tangguh, aman, dan berakar pada filosofi budaya Kota Makassar:</p>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">🎨</span>
+              <div class="feature-text">
+                <h4>Identitas Warna Makassar & Tipografi Indonesia</h4>
+                <p>Palet Crimson Maroon (#8B2342), Gold (#C8940E), dan font Plus Jakarta Sans.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">⚡</span>
+              <div class="feature-text">
+                <h4>React 18, TypeScript & Vite</h4>
+                <p>Type safety tanpa runtime error, ukuran bundle terkompresi, dan waktu muat di bawah 1 detik.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">🗄️</span>
+              <div class="feature-text">
+                <h4>Supabase PostgreSQL + Graceful Local Cache</h4>
+                <p>Row Level Security (RLS) cloud database didukung sinkronisasi cache lokal saat jaringan terputus.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="screenshot-frame" onclick="triggerUpload(8)" id="frame-8">
+          <button class="btn-clear-img" onclick="clearImage(event, 8)">✕</button>
+          <div class="screenshot-placeholder">
+            <span class="icon-camera">📷</span>
+            <h5>Screenshot Tampilan Mobile / PWA</h5>
+            <p>Screenshot tampilan mobile di HP atau diagram alur sistem.</p>
+            <span class="shortcut-tip">Slot Screenshot #8 (Ctrl + V)</span>
+          </div>
+          <img id="img-8" style="display:none;" />
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: DAMPAK NYATA -->
+    <section class="slide-card" data-title="Dampak & Manfaat">
+      <div class="slide-header">
+        <div>
+          <div class="slide-tag"><span>📈</span> Evaluasi Nilai Tambah</div>
+          <h2 class="slide-title">Dampak & Manfaat Nyata Implementasi</h2>
+        </div>
+        <div class="slide-number">Slide 09</div>
+      </div>
+      <div class="slide-body full-content">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+          <div class="feature-item" style="flex-direction: column; padding: 24px; text-align: center;">
+            <div style="font-size: 38px; margin-bottom: 12px;">👥</div>
+            <h4 style="font-size: 16px; margin-bottom: 8px;">Bagi Masyarakat Warga</h4>
+            <p style="font-size: 13px; line-height: 1.5; color: var(--stone-600);">
+              Akses informasi 24 jam, jaminan layanan administrasi 100% Bebas Pungli, dan saluran pengaduan transparan yang pasti ditanggapi.
+            </p>
+          </div>
+          <div class="feature-item" style="flex-direction: column; padding: 24px; text-align: center;">
+            <div style="font-size: 38px; margin-bottom: 12px;">🏛️</div>
+            <h4 style="font-size: 16px; margin-bottom: 8px;">Bagi Aparatur Kelurahan</h4>
+            <p style="font-size: 13px; line-height: 1.5; color: var(--stone-600);">
+              Alokasi satgas kebersihan & ketertiban tepat sasaran berkat pemeringkatan SAW, arsip pengaduan rapi, dan otomasi pesan WA pemohon.
+            </p>
+          </div>
+          <div class="feature-item" style="flex-direction: column; padding: 24px; text-align: center;">
+            <div style="font-size: 38px; margin-bottom: 12px;">📈</div>
+            <h4 style="font-size: 16px; margin-bottom: 8px;">Bagi Pelaku UMKM</h4>
+            <p style="font-size: 13px; line-height: 1.5; color: var(--stone-600);">
+              Etalase promosi gratis terverifikasi pemerintah kelurahan untuk meningkatkan omzet penjualan produk lorong tanpa potongan biaya.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: PENUTUP & QnA -->
+    <section class="slide-card cover-slide" data-title="Penutup & QnA">
+      <div class="cover-tag">Sesi Tanya Jawab (Q&A)</div>
+      <h1 class="cover-title">Terima Kasih Atas Perhatian Bapak/Ibu Dewan Penguji</h1>
+      <p class="cover-subtitle">Website Sistem Informasi & Pelayanan Publik Kelurahan Mamajang Luar siap diimplementasikan demi kemajuan tata kelola masyarakat Kota Makassar.</p>
+      
+      <div style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 14px 28px; border-radius: 16px; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 14px;">
+        <span style="font-size: 24px;">🌐</span>
+        <div style="text-align: left;">
+          <p style="font-size: 11px; color: #F3C966; font-weight: 700;">DEMO ONLINE VERCEL:</p>
+          <p style="font-size: 14px; font-weight: 700; color: #FFF; font-family: monospace;">https://web-kelurahan-mamajang-luar.vercel.app</p>
+        </div>
+      </div>
+
+      <div class="cover-footer">
+        <span>Kelurahan Mamajang Luar, Kecamatan Mamajang, Kota Makassar</span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Speaker Notes Drawer -->
+  <aside class="speaker-notes-bar" id="speakerNotesBar">
+    <span class="speaker-notes-tag">Catatan Pembicara</span>
+    <p id="speakerNotesText">Memuat catatan pembicara...</p>
+  </aside>
+
+  <!-- Bottom Status Footer -->
+  <footer class="status-bar">
+    <div class="key-hints">
+      <span>Gunakan <kbd>◀</kbd> <kbd>▶</kbd> atau <kbd>Spasi</kbd> untuk pindah slide</span>
+      <span><kbd>N</kbd> Skrip Pembicara</span>
+      <span><kbd>F</kbd> Layar Penuh</span>
+      <span><kbd>Ctrl + V</kbd> Paste Gambar</span>
+    </div>
+    <div>
+      <span id="currentSlideName">Slide 1: Judul & Pembuka</span>
+    </div>
+  </footer>
+
+  <!-- Hidden File Input for Image Upload -->
+  <input type="file" id="hiddenFileInput" accept="image/*" style="display:none;" />
+
+  <script>
+    const slides = document.querySelectorAll('.slide-card');
+    const progressBar = document.getElementById('progressBar');
+    const slideCounter = document.getElementById('slideCounter');
+    const currentSlideName = document.getElementById('currentSlideName');
+    const speakerNotesText = document.getElementById('speakerNotesText');
+    const speakerNotesBar = document.getElementById('speakerNotesBar');
+    const btnNotes = document.getElementById('btnNotes');
+    const hiddenFileInput = document.getElementById('hiddenFileInput');
+
+    let currentSlide = 0;
+    let targetUploadSlide = null;
+
+    const SPEAKER_NOTES = [
+      "Selamat pagi/siang Bapak/Ibu dewan penguji dan hadirin sekalian. Pada hari ini saya akan mempresentasikan karya sistem informasi dan pelayanan publik digital untuk Kelurahan Mamajang Luar, Kota Makassar. Sistem ini hadir memadukan keterbukaan informasi, komputasi cerdas SPK SAW untuk keluhan warga, serta pemberdayaan ekonomi UMKM lorong.",
+      "Kelurahan Mamajang Luar menghadapi 3 kendala utama: laporan warga yang menumpuk tanpa skala prioritas terukur, potensi puluhan UMKM lorong yang belum memiliki wadah promosi digital terpusat, serta warga yang masih harus datang ke kantor kelurahan hanya untuk mengecek syarat berkas surat.",
+      "Solusi yang dibangun mencakup 4 pilar terpadu: portal resmi transparansi kelurahan bebas pungli, algoritma SPK metode Simple Additive Weighting (SAW) untuk menentukan ranking urgensi laporan, direktori mandiri UMKM warga, dan aplikasi PWA yang fleksibel dibuka di layar smartphone.",
+      "Metode SAW diterapkan dengan 4 kriteria objektif: Cakupan Dampak Masalah (C1 30%), Kategori Urgensi Lapangan (C2 25%), Deteksi Kata Kunci Kritis seperti banjir/tersumbat (C3 25%), dan Waktu Tunggu Laporan (C4 20%). Hasilnya, keluhan paling darurat seketika menempati ranking teratas di layar staf.",
+      "Warga mendapatkan transparansi penuh saat melapor: dapat menyertakan foto bukti yang otomatis dikompresi, menerima nomor tiket resmi pelacakan, serta memantau progres penanganan lurah kapan saja. Tombol Lacak Tiket di dock bawah ponsel juga telah teroptimasi mulus.",
+      "Di bidang ekonomi kerakyatan, warga pelaku UMKM dapat mendaftarkan usaha mereka secara mandiri dan 100% gratis. Demi menjaga kebersihan data, sistem menerapkan moderasi 2 langkah: data masuk ke status 'Menunggu' dan baru tayang di publik setelah disetujui staf.",
+      "Bagi staf aparatur, Dashboard CMS menempatkan tab Pengaduan Warga di urutan nomor satu yang langsung terbuka saat login. Dilengkapi juga dengan Generator Pesan WhatsApp Resmi sehingga staf dapat mengabari pemohon surat hanya dalam 1 klik.",
+      "Website ini dibangun dengan React 18, TypeScript, Tailwind CSS, dan Supabase PostgreSQL. Kami memegang teguh identitas lokal Kota Makassar (Crimson Maroon & Gold) dengan font Plus Jakarta Sans dan bebas dari template AI generik. Web juga tahan dibuka offline berkat Progressive Web App.",
+      "Dampak nyata dirasakan langsung oleh 3 pilar: warga terjamin dari pungutan liar, staf kelurahan dapat mengalokasikan satgas lapangan secara tepat sasaran berbasis data SAW, dan pelaku UMKM lorong menikmati peningkatan omzet tanpa potongan komisi.",
+      "Demikian presentasi yang dapat saya sampaikan. Sistem ini telah teruji dan siap diterapkan secara nyata di Kelurahan Mamajang Luar. Saya membuka sesi untuk masukan, saran, dan pertanyaan dari Bapak/Ibu dewan penguji. Terima kasih."
+    ];
+
+    function updateSlide() {
+      slides.forEach((s, idx) => {
+        s.classList.toggle('active', idx === currentSlide);
+      });
+
+      const total = slides.length;
+      const progress = ((currentSlide + 1) / total) * 100;
+      progressBar.style.width = `${progress}%`;
+      slideCounter.innerText = `${currentSlide + 1} / ${total}`;
+
+      const activeEl = slides[currentSlide];
+      const title = activeEl.getAttribute('data-title') || `Slide ${currentSlide + 1}`;
+      currentSlideName.innerText = `Slide ${currentSlide + 1}: ${title}`;
+      speakerNotesText.innerText = SPEAKER_NOTES[currentSlide] || "Tidak ada catatan khusus.";
+    }
+
+    function nextSlide() {
+      if (currentSlide < slides.length - 1) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    function toggleNotes() {
+      speakerNotesBar.classList.toggle('open');
+      btnNotes.classList.toggle('active');
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'n') {
+        toggleNotes();
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullScreen();
+      }
+    });
+
+    // Image Upload & Paste (Ctrl + V) Handler
+    function triggerUpload(slideNum) {
+      targetUploadSlide = slideNum;
+      hiddenFileInput.click();
+    }
+
+    hiddenFileInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file && targetUploadSlide) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          saveAndDisplayImage(targetUploadSlide, evt.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+      hiddenFileInput.value = '';
+    });
+
+    // Support direct clipboard paste (Ctrl + V)
+    window.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            const slideNum = currentSlide + 1;
+            saveAndDisplayImage(slideNum, evt.target.result);
+          };
+          reader.readAsDataURL(blob);
+          break;
+        }
+      }
+    });
+
+    function saveAndDisplayImage(slideNum, dataUrl) {
+      const imgEl = document.getElementById(`img-${slideNum}`);
+      const frameEl = document.getElementById(`frame-${slideNum}`);
+      if (imgEl && frameEl) {
+        imgEl.src = dataUrl;
+        imgEl.style.display = 'block';
+        frameEl.classList.add('has-image');
+        try {
+          localStorage.setItem(`slide_img_${slideNum}`, dataUrl);
+        } catch (err) {
+          // storage quota if image is huge
+        }
+      }
+    }
+
+    function clearImage(event, slideNum) {
+      event.stopPropagation();
+      const imgEl = document.getElementById(`img-${slideNum}`);
+      const frameEl = document.getElementById(`frame-${slideNum}`);
+      if (imgEl && frameEl) {
+        imgEl.src = '';
+        imgEl.style.display = 'none';
+        frameEl.classList.remove('has-image');
+        localStorage.removeItem(`slide_img_${slideNum}`);
+      }
+    }
+
+    const DEFAULT_SCREENSHOTS = {
+      2: '/screenshots/slide2_home.png',
+      4: '/screenshots/slide4_spk.png',
+      5: '/screenshots/slide5_form.png',
+      6: '/screenshots/slide6_umkm.png',
+      7: '/screenshots/slide7_admin.png',
+      8: '/screenshots/slide8_mobile.png',
+    };
+
+    // Restore cached or default screenshots on load
+    window.addEventListener('DOMContentLoaded', () => {
+      for (let i = 1; i <= 10; i++) {
+        const saved = localStorage.getItem(`slide_img_${i}`) || DEFAULT_SCREENSHOTS[i];
+        if (saved) {
+          const imgEl = document.getElementById(`img-${i}`);
+          const frameEl = document.getElementById(`frame-${i}`);
+          if (imgEl && frameEl) {
+            imgEl.src = saved;
+            imgEl.style.display = 'block';
+            frameEl.classList.add('has-image');
+          }
+        }
+      }
+      updateSlide();
+    });
+  </script>
+</body>
+</html>
